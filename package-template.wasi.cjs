@@ -109,4 +109,23 @@ const { instance: __napiInstance, module: __wasiModule, napiModule: __napiModule
 })
 module.exports = __napiModule.exports
 module.exports.Camera = __napiModule.exports.Camera
+module.exports.CameraBuffer = __napiModule.exports.CameraBuffer
+module.exports.allKnownCameraControls = __napiModule.exports.allKnownCameraControls
+module.exports.ApiBackend = __napiModule.exports.ApiBackend
+module.exports.bufBgrToRgb = __napiModule.exports.bufBgrToRgb
+module.exports.bufMjpegToRgb = __napiModule.exports.bufMjpegToRgb
+module.exports.bufNv12ToRgb = __napiModule.exports.bufNv12ToRgb
+module.exports.bufYuyv422ToRgb = __napiModule.exports.bufYuyv422ToRgb
+module.exports.colorFrameFormats = __napiModule.exports.colorFrameFormats
+module.exports.FrameFormat = __napiModule.exports.FrameFormat
+module.exports.frameFormats = __napiModule.exports.frameFormats
+module.exports.KnownCameraControl = __napiModule.exports.KnownCameraControl
 module.exports.listCameras = __napiModule.exports.listCameras
+module.exports.mjpegToRgb = __napiModule.exports.mjpegToRgb
+module.exports.nativeApiBackend = __napiModule.exports.nativeApiBackend
+module.exports.nokhwaCheck = __napiModule.exports.nokhwaCheck
+module.exports.nv12ToRgb = __napiModule.exports.nv12ToRgb
+module.exports.query = __napiModule.exports.query
+module.exports.RequestedFormatType = __napiModule.exports.RequestedFormatType
+module.exports.yuyv422PredictedSize = __napiModule.exports.yuyv422PredictedSize
+module.exports.yuyv422ToRgb = __napiModule.exports.yuyv422ToRgb

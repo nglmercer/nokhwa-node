@@ -57,4 +57,23 @@ const {
 })
 export default __napiModule.exports
 export const Camera = __napiModule.exports.Camera
+export const CameraBuffer = __napiModule.exports.CameraBuffer
+export const allKnownCameraControls = __napiModule.exports.allKnownCameraControls
+export const ApiBackend = __napiModule.exports.ApiBackend
+export const bufBgrToRgb = __napiModule.exports.bufBgrToRgb
+export const bufMjpegToRgb = __napiModule.exports.bufMjpegToRgb
+export const bufNv12ToRgb = __napiModule.exports.bufNv12ToRgb
+export const bufYuyv422ToRgb = __napiModule.exports.bufYuyv422ToRgb
+export const colorFrameFormats = __napiModule.exports.colorFrameFormats
+export const FrameFormat = __napiModule.exports.FrameFormat
+export const frameFormats = __napiModule.exports.frameFormats
+export const KnownCameraControl = __napiModule.exports.KnownCameraControl
 export const listCameras = __napiModule.exports.listCameras
+export const mjpegToRgb = __napiModule.exports.mjpegToRgb
+export const nativeApiBackend = __napiModule.exports.nativeApiBackend
+export const nokhwaCheck = __napiModule.exports.nokhwaCheck
+export const nv12ToRgb = __napiModule.exports.nv12ToRgb
+export const query = __napiModule.exports.query
+export const RequestedFormatType = __napiModule.exports.RequestedFormatType
+export const yuyv422PredictedSize = __napiModule.exports.yuyv422PredictedSize
+export const yuyv422ToRgb = __napiModule.exports.yuyv422ToRgb

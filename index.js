@@ -573,4 +573,23 @@ if (!nativeBinding) {
 
 module.exports = nativeBinding
 module.exports.Camera = nativeBinding.Camera
+module.exports.CameraBuffer = nativeBinding.CameraBuffer
+module.exports.allKnownCameraControls = nativeBinding.allKnownCameraControls
+module.exports.ApiBackend = nativeBinding.ApiBackend
+module.exports.bufBgrToRgb = nativeBinding.bufBgrToRgb
+module.exports.bufMjpegToRgb = nativeBinding.bufMjpegToRgb
+module.exports.bufNv12ToRgb = nativeBinding.bufNv12ToRgb
+module.exports.bufYuyv422ToRgb = nativeBinding.bufYuyv422ToRgb
+module.exports.colorFrameFormats = nativeBinding.colorFrameFormats
+module.exports.FrameFormat = nativeBinding.FrameFormat
+module.exports.frameFormats = nativeBinding.frameFormats
+module.exports.KnownCameraControl = nativeBinding.KnownCameraControl
 module.exports.listCameras = nativeBinding.listCameras
+module.exports.mjpegToRgb = nativeBinding.mjpegToRgb
+module.exports.nativeApiBackend = nativeBinding.nativeApiBackend
+module.exports.nokhwaCheck = nativeBinding.nokhwaCheck
+module.exports.nv12ToRgb = nativeBinding.nv12ToRgb
+module.exports.query = nativeBinding.query
+module.exports.RequestedFormatType = nativeBinding.RequestedFormatType
+module.exports.yuyv422PredictedSize = nativeBinding.yuyv422PredictedSize
+module.exports.yuyv422ToRgb = nativeBinding.yuyv422ToRgb

@@ -1,8 +1,20 @@
 import test from 'ava'
 
-import { plus100 } from '../index'
+import { nokhwaCheck, frameFormats, allKnownCameraControls } from '../index'
 
-test('sync function from native code', (t) => {
-  const fixture = 42
-  t.is(plus100(fixture), fixture + 100)
+test('nokhwa check function', (t) => {
+  const result = nokhwaCheck()
+  t.is(typeof result, 'boolean')
+})
+
+test('frame formats function', (t) => {
+  const formats = frameFormats()
+  t.is(Array.isArray(formats), true)
+  t.true(formats.length > 0)
+})
+
+test('all known camera controls function', (t) => {
+  const controls = allKnownCameraControls()
+  t.is(Array.isArray(controls), true)
+  t.true(controls.length > 0)
 })

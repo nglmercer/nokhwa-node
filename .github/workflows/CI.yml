@@ -136,7 +136,16 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Build
-        run: ${{ matrix.settings.build }}
+        env:
+          CARGO_TARGET: ${{ matrix.settings.target }}
+        run: |
+          if [[ "${{ matrix.settings.build }}" == *"--use-napi-cross"* ]]; then
+            napi build --platform --target ${CARGO_TARGET} --release --use-napi-cross
+          elif [[ "${{ matrix.settings.build }}" == *"-x"* ]]; then
+            napi build --platform --target ${CARGO_TARGET} --release -x
+          else
+            napi build --platform --target ${CARGO_TARGET} --release
+          fi
         shell: bash
       - name: Upload artifact
         uses: actions/upload-artifact@v6

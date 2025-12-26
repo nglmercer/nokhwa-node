@@ -24,7 +24,9 @@
   "files": [
     "index.d.ts",
     "index.js",
-    "browser.js"
+    "browser.js",
+    "*.node",
+    "*.wasm"
   ],
   "napi": {
     "binaryName": "nokhwa-node",

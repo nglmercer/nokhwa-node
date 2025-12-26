@@ -348,14 +348,21 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm install
-      - name: create npm dirs
-        run: npx napi create-npm-dirs
+      - name: Create npm package structure
+        run: npx napi prepublish -t npm
       - name: Download all artifacts
         uses: actions/download-artifact@v7
         with:
           path: artifacts
-      - name: Move artifacts
-        run: npm run artifacts
+      - name: Move artifacts to npm package
+        run: |
+          mkdir -p npm
+          find artifacts -name "*.node" -exec cp {} npm/ \;
+          find artifacts -name "*.wasm" -exec cp {} npm/ \;
+          cp index.js npm/
+          cp index.d.ts npm/
+          cp browser.js npm/
+          cp package.json npm/
       - name: List packages
         run: ls -R ./npm
         shell: bash
@@ -368,17 +375,17 @@ jobs:
             TAG_NAME=${GITHUB_REF#refs/tags/}
             echo "Publishing tag: $TAG_NAME"
             echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-            npm publish --access public
+            cd npm && npm publish --access public
           # Check if commit message starts with version
           elif git log -1 --pretty=%B | grep -E "^[0-9]+\.[0-9]+\.[0-9]+$"; then
             echo "Publishing version from commit message"
             echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-            npm publish --access public
+            cd npm && npm publish --access public
           # Check if commit message contains version
           elif git log -1 --pretty=%B | grep -E "[0-9]+\.[0-9]+\.[0-9]+"; then
             echo "Publishing prerelease from commit message"
             echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-            npm publish --tag next --access public
+            cd npm && npm publish --tag next --access public
           else
             echo "Not a release, skipping publish"
           fi

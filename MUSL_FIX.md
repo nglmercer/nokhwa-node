@@ -15,45 +15,37 @@ Please try `npm i` again after removing both package-lock.json and node_modules 
 
 ## Solution
 
-Created a smart test runner that detects musl environments and uses a different execution strategy:
+Replace `@oxc-node/core` with `tsx` as the TypeScript loader for Ava tests. This provides consistent TypeScript support across all platforms including musl.
 
 ### Files Created/Modified
 
 1. **test-runner.mjs** (new file)
-   - Detects if running on musl via environment variable `USE_MUSL_FALLBACK` or system detection
-   - **On musl (Alpine Linux):**
-     - Compiles TypeScript files using `tsc` first
-     - Runs Ava on compiled JavaScript files (no @oxc-node/core needed)
-     - Cleans up compiled files after tests complete
-   - **On other systems:**
-     - Runs Ava with `--import=@oxc-node/core/register` for TypeScript support
+   - Simple wrapper that runs Ava with tsx for TypeScript support
+   - Works identically on all platforms (musl, gnu, Windows, macOS)
+   - Uses `tsx/cjs` loader to transpile TypeScript at runtime
+   - No platform-specific logic needed
 
 2. **package.json**
    - Changed test script: `"test": "ava"` → `"test": "node test-runner.mjs"`
    - Added `"test:ava": "ava"` as alternative for direct Ava usage
-   - Extended Ava config to support both `.ts` (module) and `.js` (true) extensions
-   - Removed global `nodeArguments` and `environmentVariables` from Ava config
-   - Handles TypeScript loading dynamically in test-runner.mjs
+   - Updated Ava config to use `tsx/cjs` instead of `@oxc-node/core/register`
+   - Both `.ts` (module) and `.js` (true) extensions supported
 
 3. **.github/workflows/CI.yml**
-   - Added `USE_MUSL_FALLBACK` environment variable to test-linux-binding job
-   - Automatically sets it to `'1'` for musl targets, `'0'` for gnu targets
+   - No changes required - works with existing test-linux-binding configuration
 
 ## How It Works
 
-### Standard Workflow (non-musl)
+### All Platforms (unified approach)
 ```
-npm test → test-runner.mjs → Ava with @oxc-node/core/register → Run TypeScript tests directly
+npm test → test-runner.mjs → Ava with tsx/cjs loader → TypeScript tests transpiled at runtime
 ```
 
-### Musl Workflow (Alpine Linux)
-```
-npm test → test-runner.mjs 
-         ↓ (USE_MUSL_FALLBACK=1)
-    1. Compile TypeScript with tsc
-    2. Run Ava on compiled JavaScript
-    3. Clean up compiled files
-```
+**Key difference:** `tsx` provides a pure JavaScript TypeScript loader that:
+- Works on all platforms without native dependencies
+- Transpiles TypeScript at runtime (no pre-compilation needed)
+- Handles both ESM and CJS modules correctly
+- Is already a project dependency (used for benchmarking)
 
 ## Testing
 

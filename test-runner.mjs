@@ -4,16 +4,11 @@
  * Test runner that handles musl targets
  * 
  * On musl targets (Alpine Linux), @oxc-node/core doesn't provide prebuilt binaries.
- * We compile TypeScript with tsc, then run Ava on the compiled files.
+ * We compile TypeScript with tsc, then run Ava on compiled files.
  */
 
 import { spawn } from 'child_process'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
 import { rm } from 'fs/promises'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
 
 // Check if we're on a musl system
 async function isMusl() {
@@ -28,14 +23,6 @@ async function isMusl() {
     if (fs.existsSync('/usr/bin/env')) {
       const content = fs.readFileSync('/usr/bin/env', 'binary')
       if (content.includes('musl') || content.includes('libc.musl')) {
-        return true
-      }
-    }
-    
-    // Check libc version via process.report
-    if (process.report && typeof process.report.getReport === 'function') {
-      const report = process.report.getReport()
-      if (report.sharedObjects && report.sharedObjects.some(obj => obj.includes('musl'))) {
         return true
       }
     }
@@ -79,16 +66,9 @@ async function main() {
     
     // Run Ava on compiled JavaScript files
     console.log('  Running tests with ava...')
-    // Ava looks for test files - point to lib directory with compiled JS
     const testArgs = args.length > 0 ? args : ['__test__/lib/**/*.js']
     const ava = spawn('npx', ['ava', ...testArgs], {
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        // Clear nodeArguments to avoid using @oxc-node/core loader
-        // Not needed for compiled JavaScript files
-        NODE_OPTIONS: ''
-      }
+      stdio: 'inherit'
     })
     
     return new Promise((resolve, reject) => {
@@ -111,7 +91,7 @@ async function main() {
   } else {
     // Use standard ava with @oxc-node/core for non-musl targets
     console.log('  Running with ava...')
-    const ava = spawn('npx', ['ava', '--import=@oxc-node/core/register', ...args], {
+    const ava = spawn('npx', ['ava', ...args], {
       stdio: 'inherit',
       env: {
         ...process.env,

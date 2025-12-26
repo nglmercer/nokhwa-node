@@ -60,8 +60,7 @@ async function main() {
     
     // Compile TypeScript
     const tsc = spawn('npx', ['tsc', '-p', '__test__/tsconfig.json'], {
-      stdio: 'inherit',
-      shell: true
+      stdio: 'inherit'
     })
     
     await new Promise((resolve, reject) => {
@@ -80,13 +79,15 @@ async function main() {
     
     // Run Ava on compiled JavaScript files
     console.log('  Running tests with ava...')
-    // Ava looks for test files - point to the lib directory with compiled JS
+    // Ava looks for test files - point to lib directory with compiled JS
     const testArgs = args.length > 0 ? args : ['__test__/lib/**/*.js']
     const ava = spawn('npx', ['ava', ...testArgs], {
       stdio: 'inherit',
-      shell: true,
       env: {
-        ...process.env
+        ...process.env,
+        // Clear nodeArguments to avoid using @oxc-node/core loader
+        // Not needed for compiled JavaScript files
+        NODE_OPTIONS: ''
       }
     })
     
@@ -110,9 +111,8 @@ async function main() {
   } else {
     // Use standard ava with @oxc-node/core for non-musl targets
     console.log('  Running with ava...')
-    const ava = spawn('npx', ['ava', ...args], {
+    const ava = spawn('npx', ['ava', '--import=@oxc-node/core/register', ...args], {
       stdio: 'inherit',
-      shell: true,
       env: {
         ...process.env,
         OXC_TSCONFIG_PATH: './__test__/tsconfig.json'

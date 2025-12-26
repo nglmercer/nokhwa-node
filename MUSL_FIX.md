@@ -26,16 +26,18 @@ Created a smart test runner that detects musl environments and uses a different 
      - Runs Ava on compiled JavaScript files (no @oxc-node/core needed)
      - Cleans up compiled files after tests complete
    - **On other systems:**
-     - Runs Ava normally with `@oxc-node/core/register` for TypeScript support
+     - Runs Ava with `--import=@oxc-node/core/register` for TypeScript support
 
 2. **package.json**
    - Changed test script: `"test": "ava"` → `"test": "node test-runner.mjs"`
    - Added `"test:ava": "ava"` as alternative for direct Ava usage
-   - Extended Ava config to support both `.ts` and `.js` extensions
+   - Extended Ava config to support both `.ts` (module) and `.js` (true) extensions
+   - Removed global `nodeArguments` and `environmentVariables` from Ava config
+   - Handles TypeScript loading dynamically in test-runner.mjs
 
 3. **.github/workflows/CI.yml**
    - Added `USE_MUSL_FALLBACK` environment variable to test-linux-binding job
-   - Automatically sets it to '1' for musl targets, '0' for gnu targets
+   - Automatically sets it to `'1'` for musl targets, `'0'` for gnu targets
 
 ## How It Works
 

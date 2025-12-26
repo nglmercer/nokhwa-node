@@ -100,17 +100,10 @@
   "ava": {
     "extensions": {
       "ts": "module",
-      "js": "module"
+      "js": true
     },
     "timeout": "2m",
-    "workerThreads": false,
-    "environmentVariables": {
-      "OXC_TSCONFIG_PATH": "./__test__/tsconfig.json"
-    },
-    "nodeArguments": [
-      "--import",
-      "@oxc-node/core/register"
-    ]
+    "workerThreads": false
   },
   "prettier": {
     "printWidth": 120,

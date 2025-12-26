@@ -121,9 +121,14 @@ jobs:
           CARGO_TARGET: ${{ matrix.settings.target }}
         run: |
           if [[ "${CARGO_TARGET}" == *"musl"* ]]; then
-            # Use zig for musl cross-compilation
-            npx napi build --platform --target ${CARGO_TARGET} --release --zig
+            # For musl targets, use cross-compile flag and ensure zig is in PATH
+            export PATH=$HOME/.cargo/bin:$PATH
+            npx napi build --platform --target ${CARGO_TARGET} --release --cross-compile
+          elif [[ "${CARGO_TARGET}" == *"wasm"* ]]; then
+            # WASM builds don't need special handling
+            npx napi build --platform --target ${CARGO_TARGET} --release
           else
+            # Standard builds
             npx napi build --platform --target ${CARGO_TARGET} --release
           fi
         shell: bash
@@ -155,7 +160,6 @@ jobs:
           shell: bash
           run: |
             sudo pkg install -y -f curl node libnghttp2 npm cmake
-            sudo npm install -g yarn --ignore-scripts
             curl https://sh.rustup.rs -sSf --output rustup.sh
             sh rustup.sh -y --profile minimal --default-toolchain stable
             source "$HOME/.cargo/env"
@@ -163,15 +167,13 @@ jobs:
             rustc --version
             echo "~~~~ node -v ~~~~"
             node -v
-            echo "~~~~ yarn --version ~~~~"
-            yarn --version
             pwd
             ls -lah
             whoami
             env
             freebsd-version
-            yarn install --ignore-scripts
-            yarn build
+            npm install --legacy-peer-deps --ignore-scripts
+            npm run build
             rm -rf node_modules
             rm -rf target
             rm -rf .yarn/cache

@@ -9,14 +9,23 @@ async function main() {
 
     const camera = new Camera(cameras[0].index);
     
-    // Refresh format to get actual active format (not just requested)
-    camera.refreshCameraFormat();
-    
     // Get all compatible formats to see what's available
     const compatibleFormats = camera.compatibleCameraFormats();
     
     // Read format after initialization (constructor now auto-optimizes to 30fps+)
-    const currentFormat = camera.cameraFormat();
+    let currentFormat = camera.cameraFormat();
+    
+    // Find the actual frame rate from compatible formats (camera_format() shows requested FPS)
+    const matchingFormat = compatibleFormats.find(
+        fmt => fmt.resolution.width === currentFormat.resolution.width &&
+               fmt.resolution.height === currentFormat.resolution.height &&
+               fmt.format === currentFormat.format
+    );
+    
+    // Use the actual frame rate from compatible formats
+    if (matchingFormat) {
+        currentFormat.frameRate = matchingFormat.frameRate;
+    }
     
     console.log(`Devices:`, cameras);
     console.log(`\n📷 Available Formats (${compatibleFormats.length} total):`);
@@ -28,7 +37,7 @@ async function main() {
             Format: fmt.format,
             Selected: fmt.resolution.width === currentFormat.resolution.width &&
                      fmt.resolution.height === currentFormat.resolution.height &&
-                     fmt.frameRate === currentFormat.frameRate ? '✓' : ''
+                     fmt.format === currentFormat.format ? '✓' : ''
         }))
     );
     

@@ -80,6 +80,8 @@ impl Camera {
     }
 
     /// Get the current camera format
+    /// Note: This returns the requested frame rate. Use refresh_camera_format() 
+    /// to get the actual active frame rate from the camera.
     #[napi]
     pub fn camera_format(&self) -> CameraFormat {
         let fmt = self.camera.camera_format();

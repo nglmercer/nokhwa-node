@@ -362,12 +362,21 @@ jobs:
       - name: Publish
         run: |
           npm config set provenance true
-          if git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$";
-          then
+          
+          # Check if we're on a tag
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+            echo "Publishing tag: $TAG_NAME"
             echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
             npm publish --access public
-          elif git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+";
-          then
+          # Check if commit message starts with version
+          elif git log -1 --pretty=%B | grep -E "^[0-9]+\.[0-9]+\.[0-9]+$"; then
+            echo "Publishing version from commit message"
+            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+            npm publish --access public
+          # Check if commit message contains version
+          elif git log -1 --pretty=%B | grep -E "[0-9]+\.[0-9]+\.[0-9]+"; then
+            echo "Publishing prerelease from commit message"
             echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
             npm publish --tag next --access public
           else

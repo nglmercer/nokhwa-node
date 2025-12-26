@@ -54,8 +54,8 @@ async function main() {
         })
         .add('Capture + Data Access', () => {
             const frame = camera.captureFrame();
-            const _ = frame.data; // Simula acceso a memoria
-            _;  
+            // Access data to simulate memory access
+            void frame.data;
         })
         .add('Metadata Query', () => {
             camera.info();

@@ -5,6 +5,7 @@ import { nokhwaCheck, frameFormats, allKnownCameraControls } from '../index'
 test('nokhwa check function', (t) => {
   const result = nokhwaCheck()
   t.is(typeof result, 'boolean')
+  // Don't require nokhwaCheck to be true - it returns false in headless/CI environments
 })
 
 test('frame formats function', (t) => {

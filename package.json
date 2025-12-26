@@ -60,7 +60,8 @@
     "format:rs": "cargo fmt",
     "lint": "oxlint .",
     "prepublishOnly": "napi prepublish -t npm",
-    "test": "ava",
+    "test": "node test-runner.mjs",
+    "test:ava": "ava",
     "preversion": "napi build --platform && git add .",
     "version": "napi version",
     "prepare": "husky",
@@ -98,7 +99,8 @@
   },
   "ava": {
     "extensions": {
-      "ts": "module"
+      "ts": "module",
+      "js": "module"
     },
     "timeout": "2m",
     "workerThreads": false,

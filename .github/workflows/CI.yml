@@ -140,11 +140,11 @@ jobs:
           CARGO_TARGET: ${{ matrix.settings.target }}
         run: |
           if [[ "${{ matrix.settings.build }}" == *"--use-napi-cross"* ]]; then
-            napi build --platform --target ${CARGO_TARGET} --release --use-napi-cross
+            npx napi build --platform --target ${CARGO_TARGET} --release --use-napi-cross
           elif [[ "${{ matrix.settings.build }}" == *"-x"* ]]; then
-            napi build --platform --target ${CARGO_TARGET} --release -x
+            npx napi build --platform --target ${CARGO_TARGET} --release -x
           else
-            napi build --platform --target ${CARGO_TARGET} --release
+            npx napi build --platform --target ${CARGO_TARGET} --release
           fi
         shell: bash
       - name: Upload artifact

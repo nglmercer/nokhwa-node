@@ -1,4 +1,4 @@
-name: CI
+name: Publish
 env:
   DEBUG: napi:*
   APP_NAME: nokhwa-node
@@ -6,18 +6,8 @@ env:
   CARGO_INCREMENTAL: '1'
 'on':
   push:
-    branches:
-      - main
-    paths-ignore:
-      - '**/*.md'
-      - LICENSE
-      - '**/*.gitignore'
-      - .editorconfig
-      - docs/**
-  pull_request: null
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    tags:
+      - 'v*'
 jobs:
   lint:
     name: Lint
@@ -195,115 +185,16 @@ jobs:
           name: bindings-freebsd
           path: ${{ env.APP_NAME }}.*.node
           if-no-files-found: error
-  test-macOS-windows-binding:
-    name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
-    needs:
-      - build
-    strategy:
-      fail-fast: false
-      matrix:
-        settings:
-          - host: windows-latest
-            target: x86_64-pc-windows-msvc
-            architecture: x64
-          - host: windows-11-arm
-            target: aarch64-pc-windows-msvc
-            architecture: arm64
-          - host: macos-latest
-            target: aarch64-apple-darwin
-            architecture: arm64
-          - host: macos-latest
-            target: x86_64-apple-darwin
-            architecture: x64
-        node:
-          - '20'
-          - '22'
-    runs-on: ${{ matrix.settings.host }}
-    steps:
-      - uses: actions/checkout@v6
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ matrix.node }}
-          cache: npm
-          architecture: ${{ matrix.settings.architecture }}
-      - name: Install dependencies
-        run: npm install
-      - name: Download artifacts
-        uses: actions/download-artifact@v7
-        with:
-          name: bindings-${{ matrix.settings.target }}
-          path: .
-      - name: List packages
-        run: ls -R .
-        shell: bash
-      - name: Test bindings
-        run: npm test
-  test-linux-binding:
-    name: Test ${{ matrix.target }} - node@${{ matrix.node }}
-    needs:
-      - build
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-gnu
-          - aarch64-unknown-linux-musl
-        node:
-          - '20'
-          - '22'
-    runs-on: ${{ contains(matrix.target, 'aarch64') && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
-    steps:
-      - uses: actions/checkout@v6
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ matrix.node }}
-          cache: npm
-      - name: Output docker params
-        id: docker
-        run: |
-          node -e "
-            if ('${{ matrix.target }}'.startsWith('aarch64')) {
-              console.log('PLATFORM=linux/arm64')
-            } else if ('${{ matrix.target }}'.startsWith('armv7')) {
-              console.log('PLATFORM=linux/arm/v7')
-            } else {
-              console.log('PLATFORM=linux/amd64')
-            }
-          " >> $GITHUB_OUTPUT
-          node -e "
-            if ('${{ matrix.target }}'.endsWith('-musl')) {
-              console.log('IMAGE=node:${{ matrix.node }}-alpine')
-            } else {
-              console.log('IMAGE=node:${{ matrix.node }}-slim')
-            }
-          " >> $GITHUB_OUTPUT
-      - name: Install dependencies
-        run: npm install
-      - name: Download artifacts
-        uses: actions/download-artifact@v7
-        with:
-          name: bindings-${{ matrix.target }}
-          path: .
-      - name: List packages
-        run: ls -R .
-        shell: bash
-      - name: Test bindings
-        uses: addnab/docker-run-action@v3
-        env:
-          USE_MUSL_FALLBACK: ${{ contains(matrix.target, 'musl') && '1' || '0' }}
-        with:
-          image: ${{ steps.docker.outputs.IMAGE }}
-          options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }} --platform ${{ steps.docker.outputs.PLATFORM }}
-          run: npm test
-  test-wasi:
-    name: Test WASI target
-    needs:
-      - build
+  publish:
+    name: Publish
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    needs:
+      - lint
+      - build
+      - build-freebsd
     steps:
       - uses: actions/checkout@v6
       - name: Setup node
@@ -313,15 +204,28 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm install
-      - name: Download artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v7
         with:
-          name: bindings-wasm32-wasip1-threads
-          path: .
-      - name: List packages
-        run: ls -R .
-        shell: bash
-      - name: Test bindings
-        run: npm test
+          path: artifacts
+      - name: Move artifacts to root
+        run: |
+          find artifacts -name "*.node" -exec cp {} . \;
+          find artifacts -name "*.wasm" -exec cp {} . \;
+      - name: List files
+        run: |
+          echo "Root directory:"
+          ls -lah
+          echo ""
+          echo "Artifacts directory:"
+          ls -lah artifacts/
+      - name: Publish
+        run: |
+          npm config set provenance true
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "Publishing tag: $TAG_NAME"
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+          npm publish --access public
         env:
-          NAPI_RS_FORCE_WASI: 1
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

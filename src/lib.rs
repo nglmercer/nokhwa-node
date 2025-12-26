@@ -23,8 +23,6 @@ pub use conversions::Frame;
 use camera::list_cameras as list_cameras_internal;
 use conversions::{capture_frame, convert_to_napi_frame, create_camera_with_fallback, convert_backend, convert_backend_to_napi, convert_frame_format, convert_requested_format, convert_camera_control, convert_known_control, convert_known_control_to_nokhwa, convert_control_value, parse_camera_index};
 
-// Import types for use in this module
-use types::{ApiBackend, CameraFormat, CameraDevice, Resolution, KnownCameraControl, ControlValueSetter, FrameFormat as NapiFrameFormat};
 
 // ============================================================================
 // Camera Class
@@ -44,10 +42,7 @@ impl Camera {
     pub fn new(camera_index: String) -> Result<Self> {
         let nokhwa_index = parse_camera_index(camera_index)?;
 
-        let mut camera = create_camera_with_fallback(nokhwa_index)?;
-
-        camera.open_stream()
-            .map_err(|e| Error::from_reason(format!("Failed to open camera stream: {}", e)))?;
+        let camera = create_camera_with_fallback(nokhwa_index)?;
 
         Ok(Self { camera })
     }
@@ -284,7 +279,7 @@ pub fn all_known_camera_controls() -> Vec<KnownCameraControl> {
 
 /// Get all available frame formats
 #[napi]
-pub fn frame_formats() -> Vec<NapiFrameFormat> {
+pub fn frame_formats() -> Vec<FrameFormat> {
     nokhwa::utils::frame_formats()
         .iter()
         .map(|fmt| convert_frame_format(*fmt))
@@ -293,7 +288,7 @@ pub fn frame_formats() -> Vec<NapiFrameFormat> {
 
 /// Get all color frame formats
 #[napi]
-pub fn color_frame_formats() -> Vec<NapiFrameFormat> {
+pub fn color_frame_formats() -> Vec<FrameFormat> {
     nokhwa::utils::color_frame_formats()
         .iter()
         .map(|fmt| convert_frame_format(*fmt))

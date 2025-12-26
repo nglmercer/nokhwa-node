@@ -239,29 +239,46 @@ pub fn convert_control_value(value: ControlValueSetter) -> nokhwa::utils::Contro
 }
 
 /// Create camera with format fallback
+/// Uses automatic format selection with priority on high frame rates (30fps+)
+/// Falls back to different format types and request strategies
 pub fn create_camera_with_fallback(
     index: nokhwa::utils::CameraIndex,
 ) -> napi::Result<nokhwa::Camera> {
     use nokhwa::pixel_format::{RgbAFormat, RgbFormat, YuyvFormat};
-    use nokhwa::utils::RequestedFormatType;
 
+    // Priority 1: Try highest frame rate first (should select 30fps+ if available)
     let formats = vec![
         nokhwa::utils::RequestedFormat::new::<RgbAFormat>(
-            RequestedFormatType::AbsoluteHighestResolution,
+            nokhwa::utils::RequestedFormatType::AbsoluteHighestFrameRate,
         ),
         nokhwa::utils::RequestedFormat::new::<RgbFormat>(
-            RequestedFormatType::AbsoluteHighestResolution,
+            nokhwa::utils::RequestedFormatType::AbsoluteHighestFrameRate,
         ),
         nokhwa::utils::RequestedFormat::new::<YuyvFormat>(
-            RequestedFormatType::AbsoluteHighestResolution,
+            nokhwa::utils::RequestedFormatType::AbsoluteHighestFrameRate,
+        ),
+        // Priority 2: Fall back to highest resolution if high FPS not available
+        nokhwa::utils::RequestedFormat::new::<RgbAFormat>(
+            nokhwa::utils::RequestedFormatType::AbsoluteHighestResolution,
+        ),
+        nokhwa::utils::RequestedFormat::new::<RgbFormat>(
+            nokhwa::utils::RequestedFormatType::AbsoluteHighestResolution,
+        ),
+        nokhwa::utils::RequestedFormat::new::<YuyvFormat>(
+            nokhwa::utils::RequestedFormatType::AbsoluteHighestResolution,
         ),
     ];
-    
+
     let formats_len = formats.len();
 
     for (i, format) in formats.into_iter().enumerate() {
         match nokhwa::Camera::new(index.clone(), format) {
-            Ok(cam) => return Ok(cam),
+            Ok(mut cam) => {
+                // Try to open the stream to verify the format works
+                if cam.open_stream().is_ok() {
+                    return Ok(cam);
+                }
+            }
             Err(e) => {
                 if i == formats_len - 1 {
                     return Err(Error::from_reason(format!(

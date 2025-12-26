@@ -9,7 +9,7 @@ use napi_derive::napi;
 // ============================================================================
 
 /// API backend options for camera access
-#[napi]
+#[napi(string_enum)]
 pub enum ApiBackend {
     Auto,
     MediaFoundation,
@@ -19,7 +19,7 @@ pub enum ApiBackend {
 }
 
 /// Frame format types supported by the camera
-#[napi]
+#[napi(string_enum)]
 #[derive(Clone, Copy)]
 pub enum FrameFormat {
     MJPEG,
@@ -31,7 +31,7 @@ pub enum FrameFormat {
 }
 
 /// Known camera control properties
-#[napi]
+#[napi(string_enum)]
 pub enum KnownCameraControl {
     Brightness,
     Contrast,
@@ -60,7 +60,7 @@ pub enum ControlValueSetter {
 }
 
 /// Format request types for automatic format selection
-#[napi]
+#[napi(string_enum)]
 pub enum RequestedFormatType {
     AbsoluteHighestResolution,
     AbsoluteHighestFrameRate,

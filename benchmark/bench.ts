@@ -9,17 +9,35 @@ async function main() {
 
     const camera = new Camera(cameras[0].index);
     
-    // IMPORTANTE: Para benchmarks de captura real, 
-    // necesitamos iniciar el stream fuera del loop.
-    camera.openStream(); 
-
-    const format = camera.cameraFormat();
-    console.log(`Device:`,cameras[0]);
-    console.log(`Config:`,format);
+    // Refresh format to get actual active format (not just requested)
+    camera.refreshCameraFormat();
+    
+    // Get all compatible formats to see what's available
+    const compatibleFormats = camera.compatibleCameraFormats();
+    
+    // Read format after initialization (constructor now auto-optimizes to 30fps+)
+    const currentFormat = camera.cameraFormat();
+    
+    console.log(`Devices:`, cameras);
+    console.log(`\n📷 Available Formats (${compatibleFormats.length} total):`);
+    console.table(
+        compatibleFormats.map((fmt, idx) => ({
+            Index: idx,
+            Resolution: `${fmt.resolution.width}x${fmt.resolution.height}`,
+            FPS: fmt.frameRate,
+            Format: fmt.format,
+            Selected: fmt.resolution.width === currentFormat.resolution.width &&
+                     fmt.resolution.height === currentFormat.resolution.height &&
+                     fmt.frameRate === currentFormat.frameRate ? '✓' : ''
+        }))
+    );
+    
+    console.log(`\n✅ Selected Format:`, currentFormat);
 
     const bench = new Bench({ time: 5000 });
 
     // --- Definición de Tests ---
+    // Note: Camera stream is already opened in constructor
 
     bench
         .add('Raw Frame Capture', () => {
@@ -48,7 +66,6 @@ async function main() {
 
     // Cleanup
     camera.stopStream();
-    console.log('\n✅ Done.');
 }
 
 main().catch(console.error);

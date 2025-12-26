@@ -23,9 +23,3 @@ pub fn list_cameras() -> Result<Vec<CameraDevice>> {
     
     camera_info
 }
-
-#[derive(Debug, Clone)]
-pub struct CameraInfo {
-    pub index: String,
-    pub name: String,
-}

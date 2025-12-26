@@ -120,7 +120,12 @@ jobs:
         env:
           CARGO_TARGET: ${{ matrix.settings.target }}
         run: |
-          npx napi build --platform --target ${CARGO_TARGET} --release
+          if [[ "${CARGO_TARGET}" == *"musl"* ]]; then
+            # Use zig for musl cross-compilation
+            npx napi build --platform --target ${CARGO_TARGET} --release --zig
+          else
+            npx napi build --platform --target ${CARGO_TARGET} --release
+          fi
         shell: bash
       - name: Upload artifact
         uses: actions/upload-artifact@v6
@@ -165,7 +170,7 @@ jobs:
             whoami
             env
             freebsd-version
-            yarn install
+            yarn install --ignore-scripts
             yarn build
             rm -rf node_modules
             rm -rf target

@@ -1,21 +1,25 @@
 {
-  "name": "@napi-rs/package-template",
-  "version": "1.0.0",
-  "description": "Template project for writing node package with napi-rs",
+  "name": "nokhwa-node",
+  "version": "0.1.0",
+  "description": "Node.js bindings for nokhwa camera library using napi-rs",
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/napi-rs/package-template.git"
+    "url": "git+ssh://git@github.com/nglmercer/nokhwa-node.git"
   },
   "license": "MIT",
   "browser": "browser.js",
   "keywords": [
+    "camera",
+    "webcam",
+    "video",
     "napi-rs",
     "NAPI",
     "N-API",
     "Rust",
     "node-addon",
-    "node-addon-api"
+    "node-addon-api",
+    "nokhwa"
   ],
   "files": [
     "index.d.ts",
@@ -23,7 +27,7 @@
     "browser.js"
   ],
   "napi": {
-    "binaryName": "package-template",
+    "binaryName": "nokhwa-node",
     "targets": [
       "x86_64-pc-windows-msvc",
       "x86_64-apple-darwin",
@@ -62,7 +66,8 @@
     "test": "ava",
     "preversion": "napi build --platform && git add .",
     "version": "napi version",
-    "prepare": "husky"
+    "prepare": "husky",
+    "bench:debug": "napi build --platform && tsx benchmark/bench.ts"
   },
   "devDependencies": {
     "@emnapi/core": "^1.5.0",

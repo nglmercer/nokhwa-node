@@ -1,163 +1,33 @@
 #![deny(clippy::all)]
 
+//! # nokhwa-node
+//!
+//! Node.js bindings for the nokhwa camera library using napi-rs.
+//!
+//! This library provides access to webcams and other video capture devices
+//! with support for multiple backends and frame formats.
+
+mod buffer;
 mod camera;
 mod conversions;
+mod types;
 
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
+// Re-export public types from modules
+pub use types::*;
+pub use buffer::CameraBuffer;
+pub use conversions::Frame;
+
 use camera::list_cameras as list_cameras_internal;
-use conversions::{capture_frame, convert_to_napi_frame, Frame};
+use conversions::{capture_frame, convert_to_napi_frame, create_camera_with_fallback, convert_backend, convert_backend_to_napi, convert_frame_format, convert_requested_format, convert_camera_control, convert_known_control, convert_known_control_to_nokhwa, convert_control_value, parse_camera_index};
+
+// Import types for use in this module
+use types::{ApiBackend, CameraFormat, CameraDevice, Resolution, KnownCameraControl, ControlValueSetter, FrameFormat as NapiFrameFormat};
 
 // ============================================================================
-// Enums
-// ============================================================================
-
-#[napi]
-pub enum ApiBackend {
-    Auto,
-    MediaFoundation,
-    AVFoundation,
-    OpenCv,
-    Browser,
-}
-
-#[napi]
-#[derive(Clone, Copy)]
-pub enum FrameFormat {
-    MJPEG,
-    YUYV,
-    NV12,
-    RGB,
-    RGBA,
-    GRAY,
-}
-
-#[napi]
-pub enum KnownCameraControl {
-    Brightness,
-    Contrast,
-    Saturation,
-    Hue,
-    WhiteBalance,
-    Gamma,
-    Sharpness,
-    BacklightComp,
-    Gain,
-    Pan,
-    Tilt,
-    Zoom,
-    Exposure,
-    Iris,
-    Focus,
-}
-
-#[napi]
-pub enum ControlValueSetter {
-    Integer(i64),
-    Float(f64),
-    Boolean(bool),
-    String(String),
-}
-
-#[napi]
-pub enum RequestedFormatType {
-    AbsoluteHighestResolution,
-    AbsoluteHighestFrameRate,
-}
-
-// ============================================================================
-// Structs
-// ============================================================================
-
-#[napi(object)]
-#[derive(Clone)]
-pub struct Resolution {
-    pub width: u32,
-    pub height: u32,
-}
-
-#[napi(object)]
-pub struct CameraFormat {
-    pub resolution: Resolution,
-    pub frame_rate: u32,
-    pub format: FrameFormat,
-}
-
-#[napi(object)]
-pub struct CameraControl {
-    pub name: String,
-    pub control_type: String,
-}
-
-#[napi(object)]
-pub struct CameraDevice {
-    pub index: String,
-    pub name: String,
-}
-
-#[napi(object)]
-pub struct RequestedFormatConfig {
-    pub request_type: RequestedFormatType,
-}
-
-// ============================================================================
-// Buffer
-// ============================================================================
-
-/// Buffer struct representing raw camera frame data
-#[napi]
-pub struct CameraBuffer {
-    resolution: Resolution,
-    data: Vec<u8>,
-    source_frame_format: FrameFormat,
-}
-
-#[napi]
-impl CameraBuffer {
-    /// Create a new buffer with resolution, data, and format
-    #[napi(constructor)]
-    pub fn new(resolution: Resolution, data: Buffer, source_frame_format: FrameFormat) -> Self {
-        CameraBuffer {
-            resolution,
-            data: data.to_vec(),
-            source_frame_format,
-        }
-    }
-
-    /// Get the resolution of the buffer
-    #[napi]
-    pub fn resolution(&self) -> Resolution {
-        self.resolution.clone()
-    }
-
-    /// Get the raw buffer data
-    #[napi]
-    pub fn data(&self) -> Buffer {
-        Buffer::from(self.data.clone())
-    }
-
-    /// Get the source frame format
-    #[napi]
-    pub fn source_frame_format(&self) -> FrameFormat {
-        self.source_frame_format
-    }
-
-    /// Get the width of the buffer
-    #[napi]
-    pub fn width(&self) -> u32 {
-        self.resolution.width
-    }
-
-    /// Get the height of the buffer
-    #[napi]
-    pub fn height(&self) -> u32 {
-        self.resolution.height
-    }
-}
-
-// ============================================================================
-// Camera
+// Camera Class
 // ============================================================================
 
 /// Camera instance for capturing frames with full nokhwa functionality
@@ -353,7 +223,7 @@ impl Camera {
 }
 
 // ============================================================================
-// Utility Functions
+// Utility Functions - Camera Discovery
 // ============================================================================
 
 /// List all available cameras
@@ -387,6 +257,10 @@ pub fn query(backend: ApiBackend) -> Result<Vec<CameraDevice>> {
         .collect())
 }
 
+// ============================================================================
+// Utility Functions - System Information
+// ============================================================================
+
 /// Check if nokhwa is initialized
 #[napi]
 pub fn nokhwa_check() -> bool {
@@ -410,7 +284,7 @@ pub fn all_known_camera_controls() -> Vec<KnownCameraControl> {
 
 /// Get all available frame formats
 #[napi]
-pub fn frame_formats() -> Vec<FrameFormat> {
+pub fn frame_formats() -> Vec<NapiFrameFormat> {
     nokhwa::utils::frame_formats()
         .iter()
         .map(|fmt| convert_frame_format(*fmt))
@@ -419,12 +293,16 @@ pub fn frame_formats() -> Vec<FrameFormat> {
 
 /// Get all color frame formats
 #[napi]
-pub fn color_frame_formats() -> Vec<FrameFormat> {
+pub fn color_frame_formats() -> Vec<NapiFrameFormat> {
     nokhwa::utils::color_frame_formats()
         .iter()
         .map(|fmt| convert_frame_format(*fmt))
         .collect()
 }
+
+// ============================================================================
+// Utility Functions - Buffer Conversions
+// ============================================================================
 
 /// Convert BGR buffer to RGB
 #[napi]
@@ -438,8 +316,7 @@ pub fn buf_bgr_to_rgb(width: u32, height: u32, bgr: Buffer) -> Result<Buffer> {
 /// Convert MJPEG buffer to RGB
 #[napi]
 pub fn buf_mjpeg_to_rgb(width: u32, height: u32, mjpeg: Buffer) -> Result<Buffer> {
-    let mut dest = vec
-![0u8; width as usize * height as usize * 3];
+    let mut dest = vec![0u8; width as usize * height as usize * 3];
     nokhwa::utils::buf_mjpeg_to_rgb(&mjpeg, &mut dest, false)
         .map_err(|e| Error::from_reason(format!("Failed to convert MJPEG: {}", e)))?;
     Ok(Buffer::from(dest))
@@ -458,8 +335,7 @@ pub fn buf_nv12_to_rgb(width: u32, height: u32, nv12: Buffer) -> Result<Buffer> 
 /// Convert YUYV422 buffer to RGB
 #[napi]
 pub fn buf_yuyv422_to_rgb(width: u32, height: u32, yuyv: Buffer) -> Result<Buffer> {
-    let mut dest = vec
-![0u8; width as usize * height as usize * 3];
+    let mut dest = vec![0u8; width as usize * height as usize * 3];
     nokhwa::utils::buf_yuyv422_to_rgb(&yuyv, &mut dest, false)
         .map_err(|e| Error::from_reason(format!("Failed to convert YUYV: {}", e)))?;
     Ok(Buffer::from(dest))
@@ -494,159 +370,4 @@ pub fn yuyv422_to_rgb(yuyv: Buffer, _width: u32, _height: u32) -> Result<Buffer>
     let rgb = nokhwa::utils::yuyv422_to_rgb(&yuyv, false)
         .map_err(|e| Error::from_reason(format!("Failed to convert YUYV: {}", e)))?;
     Ok(Buffer::from(rgb))
-}
-
-// ============================================================================
-// Internal Conversion Functions
-// ============================================================================
-
-fn parse_camera_index(index: String) -> Result<nokhwa::utils::CameraIndex> {
-    Ok(match index.parse::<u32>() {
-        Ok(i) => nokhwa::utils::CameraIndex::Index(i),
-        Err(_) => nokhwa::utils::CameraIndex::String(index),
-    })
-}
-
-fn convert_backend(backend: ApiBackend) -> nokhwa::utils::ApiBackend {
-    match backend {
-        ApiBackend::Auto => nokhwa::utils::ApiBackend::Auto,
-        ApiBackend::MediaFoundation => nokhwa::utils::ApiBackend::MediaFoundation,
-        ApiBackend::AVFoundation => nokhwa::utils::ApiBackend::AVFoundation,
-        ApiBackend::OpenCv => nokhwa::utils::ApiBackend::OpenCv,
-        ApiBackend::Browser => nokhwa::utils::ApiBackend::Browser,
-    }
-}
-
-fn convert_backend_to_napi(backend: nokhwa::utils::ApiBackend) -> ApiBackend {
-    match backend {
-        nokhwa::utils::ApiBackend::Auto => ApiBackend::Auto,
-        nokhwa::utils::ApiBackend::MediaFoundation => ApiBackend::MediaFoundation,
-        nokhwa::utils::ApiBackend::AVFoundation => ApiBackend::AVFoundation,
-        nokhwa::utils::ApiBackend::OpenCv => ApiBackend::OpenCv,
-        nokhwa::utils::ApiBackend::Browser => ApiBackend::Browser,
-        nokhwa::utils::ApiBackend::Video4Linux => ApiBackend::Auto, // Fallback
-        nokhwa::utils::ApiBackend::UniversalVideoClass => ApiBackend::Auto, // Fallback
-        nokhwa::utils::ApiBackend::GStreamer => ApiBackend::Auto, // Fallback
-        nokhwa::utils::ApiBackend::Network => ApiBackend::Auto, // Fallback
-    }
-}
-
-fn convert_frame_format(format: nokhwa::utils::FrameFormat) -> FrameFormat {
-    match format {
-        nokhwa::utils::FrameFormat::MJPEG => FrameFormat::MJPEG,
-        nokhwa::utils::FrameFormat::YUYV => FrameFormat::YUYV,
-        nokhwa::utils::FrameFormat::NV12 => FrameFormat::NV12,
-        nokhwa::utils::FrameFormat::RAWRGB => FrameFormat::RGB,
-        nokhwa::utils::FrameFormat::GRAY => FrameFormat::GRAY,
-        _ => FrameFormat::RGB,
-    }
-}
-
-fn convert_requested_format(config: RequestedFormatConfig) -> Result<nokhwa::utils::RequestedFormat<'static>> {
-    use nokhwa::pixel_format::RgbAFormat;
-
-    let request_type = match config.request_type {
-        RequestedFormatType::AbsoluteHighestResolution => {
-            nokhwa::utils::RequestedFormatType::AbsoluteHighestResolution
-        }
-        RequestedFormatType::AbsoluteHighestFrameRate => {
-            nokhwa::utils::RequestedFormatType::AbsoluteHighestFrameRate
-        }
-    };
-
-    Ok(nokhwa::utils::RequestedFormat::new::<RgbAFormat>(request_type))
-}
-
-fn convert_known_control(control: nokhwa::utils::KnownCameraControl) -> KnownCameraControl {
-    match control {
-        nokhwa::utils::KnownCameraControl::Brightness => KnownCameraControl::Brightness,
-        nokhwa::utils::KnownCameraControl::Contrast => KnownCameraControl::Contrast,
-        nokhwa::utils::KnownCameraControl::Saturation => KnownCameraControl::Saturation,
-        nokhwa::utils::KnownCameraControl::Hue => KnownCameraControl::Hue,
-        nokhwa::utils::KnownCameraControl::WhiteBalance => KnownCameraControl::WhiteBalance,
-        nokhwa::utils::KnownCameraControl::Gamma => KnownCameraControl::Gamma,
-        nokhwa::utils::KnownCameraControl::Sharpness => KnownCameraControl::Sharpness,
-        nokhwa::utils::KnownCameraControl::BacklightComp => KnownCameraControl::BacklightComp,
-        nokhwa::utils::KnownCameraControl::Gain => KnownCameraControl::Gain,
-        nokhwa::utils::KnownCameraControl::Pan => KnownCameraControl::Pan,
-        nokhwa::utils::KnownCameraControl::Tilt => KnownCameraControl::Tilt,
-        nokhwa::utils::KnownCameraControl::Zoom => KnownCameraControl::Zoom,
-        nokhwa::utils::KnownCameraControl::Exposure => KnownCameraControl::Exposure,
-        nokhwa::utils::KnownCameraControl::Iris => KnownCameraControl::Iris,
-        nokhwa::utils::KnownCameraControl::Focus => KnownCameraControl::Focus,
-        nokhwa::utils::KnownCameraControl::Other(_) => KnownCameraControl::Brightness, // Default fallback
-    }
-}
-
-fn convert_known_control_to_nokhwa(control: KnownCameraControl) -> nokhwa::utils::KnownCameraControl {
-    match control {
-        KnownCameraControl::Brightness => nokhwa::utils::KnownCameraControl::Brightness,
-        KnownCameraControl::Contrast => nokhwa::utils::KnownCameraControl::Contrast,
-        KnownCameraControl::Saturation => nokhwa::utils::KnownCameraControl::Saturation,
-        KnownCameraControl::Hue => nokhwa::utils::KnownCameraControl::Hue,
-        KnownCameraControl::WhiteBalance => nokhwa::utils::KnownCameraControl::WhiteBalance,
-        KnownCameraControl::Gamma => nokhwa::utils::KnownCameraControl::Gamma,
-        KnownCameraControl::Sharpness => nokhwa::utils::KnownCameraControl::Sharpness,
-        KnownCameraControl::BacklightComp => nokhwa::utils::KnownCameraControl::BacklightComp,
-        KnownCameraControl::Gain => nokhwa::utils::KnownCameraControl::Gain,
-        KnownCameraControl::Pan => nokhwa::utils::KnownCameraControl::Pan,
-        KnownCameraControl::Tilt => nokhwa::utils::KnownCameraControl::Tilt,
-        KnownCameraControl::Zoom => nokhwa::utils::KnownCameraControl::Zoom,
-        KnownCameraControl::Exposure => nokhwa::utils::KnownCameraControl::Exposure,
-        KnownCameraControl::Iris => nokhwa::utils::KnownCameraControl::Iris,
-        KnownCameraControl::Focus => nokhwa::utils::KnownCameraControl::Focus,
-    }
-}
-
-fn convert_camera_control(control: nokhwa::utils::CameraControl) -> CameraControl {
-    CameraControl {
-        name: control.name().to_string(),
-        control_type: format!("{:?}", control.control()),
-    }
-}
-
-fn convert_control_value(value: ControlValueSetter) -> nokhwa::utils::ControlValueSetter {
-    match value {
-        ControlValueSetter::Integer(i) => nokhwa::utils::ControlValueSetter::Integer(i),
-        ControlValueSetter::Float(f) => nokhwa::utils::ControlValueSetter::Float(f),
-        ControlValueSetter::Boolean(b) => nokhwa::utils::ControlValueSetter::Boolean(b),
-        ControlValueSetter::String(s) => nokhwa::utils::ControlValueSetter::String(s),
-    }
-}
-
-fn create_camera_with_fallback(
-    index: nokhwa::utils::CameraIndex,
-) -> Result<nokhwa::Camera> {
-    use nokhwa::pixel_format::{RgbAFormat, RgbFormat, YuyvFormat};
-    use nokhwa::utils::RequestedFormatType;
-
-    let formats = vec![
-        nokhwa::utils::RequestedFormat::new::<RgbAFormat>(
-            RequestedFormatType::AbsoluteHighestResolution,
-        ),
-        nokhwa::utils::RequestedFormat::new::<RgbFormat>(
-            RequestedFormatType::AbsoluteHighestResolution,
-        ),
-        nokhwa::utils::RequestedFormat::new::<YuyvFormat>(
-            RequestedFormatType::AbsoluteHighestResolution,
-        ),
-    ];
-    
-    let formats_len = formats.len();
-
-    for (i, format) in formats.into_iter().enumerate() {
-        match nokhwa::Camera::new(index.clone(), format) {
-            Ok(cam) => return Ok(cam),
-            Err(e) => {
-                if i == formats_len - 1 {
-                    return Err(Error::from_reason(format!(
-                        "Failed to create camera with any format: {}",
-                        e
-                    )));
-                }
-            }
-        }
-    }
-
-    Err(Error::from_reason("Failed to create camera".to_string()))
 }

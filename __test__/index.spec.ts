@@ -1,6 +1,7 @@
 import test from 'ava'
 
-import { nokhwaCheck, frameFormats, allKnownCameraControls } from '../index'
+// @ts-ignore
+import { nokhwaCheck, frameFormats, allKnownCameraControls } from '../../index.js'
 
 test('nokhwa check function', (t) => {
   const result = nokhwaCheck()

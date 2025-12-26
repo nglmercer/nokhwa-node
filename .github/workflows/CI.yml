@@ -110,6 +110,16 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           tool: cargo-zigbuild
+      - name: Install WASI SDK
+        if: ${{ contains(matrix.settings.target, 'wasm') }}
+        run: |
+          wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-22/wasi-sdk-22.0-linux.tar.gz
+          tar xvf wasi-sdk-22.0-linux.tar.gz
+          echo "${GITHUB_WORKSPACE}/wasi-sdk-22.0/bin" >> $GITHUB_PATH
+      - name: Set WASI sysroot environment variable
+        if: ${{ contains(matrix.settings.target, 'wasm') }}
+        run: |
+          echo "WASI_SYSROOT=${GITHUB_WORKSPACE}/wasi-sdk-22.0/share/wasi-sysroot" >> $GITHUB_ENV
       - name: Setup toolchain
         run: ${{ matrix.settings.setup }}
         if: ${{ matrix.settings.setup }}
@@ -119,13 +129,17 @@ jobs:
       - name: Build
         env:
           CARGO_TARGET: ${{ matrix.settings.target }}
+          WASI_SYSROOT: ${{ env.WASI_SYSROOT }}
         run: |
           if [[ "${CARGO_TARGET}" == *"musl"* ]]; then
             # For musl targets, use cross-compile flag and ensure zig is in PATH
             export PATH=$HOME/.cargo/bin:$PATH
             npx napi build --platform --target ${CARGO_TARGET} --release --cross-compile
           elif [[ "${CARGO_TARGET}" == *"wasm"* ]]; then
-            # WASM builds don't need special handling
+            # WASM builds need WASI sysroot
+            export CC="${GITHUB_WORKSPACE}/wasi-sdk-22.0/bin/clang"
+            export AR="${GITHUB_WORKSPACE}/wasi-sdk-22.0/bin/llvm-ar"
+            export CFLAGS="--sysroot=$WASI_SYSROOT"
             npx napi build --platform --target ${CARGO_TARGET} --release
           else
             # Standard builds

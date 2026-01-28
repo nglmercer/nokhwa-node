@@ -99,7 +99,7 @@ pub fn convert_to_napi_frame(rgba_frame: RgbaFrame) -> napi::Result<Frame> {
 /// This is a pure utility function for format conversion
 pub fn rgb_to_rgba(rgb: &[u8]) -> Vec<u8> {
   let mut rgba = Vec::with_capacity(rgb.len() / 3 * 4);
-  for chunk in rgb.chunks(3) {
+  for chunk in rgb.chunks_exact(3) {
     rgba.push(chunk[0]); // R
     rgba.push(chunk[1]); // G
     rgba.push(chunk[2]); // B

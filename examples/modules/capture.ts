@@ -3,10 +3,8 @@ import { Camera, CameraBuffer, type Frame } from '../../index.js';
 /**
  * Demonstrate frame capture operations
  */
-export async function demonstrateCaptureOperations(cameraIndex: string): Promise<void> {
+export async function demonstrateCaptureOperations(camera: Camera): Promise<void> {
   console.log('\n=== CAPTURE OPERATIONS ===\n');
-
-  const camera = new Camera(cameraIndex);
 
   // Ensure stream is open
   if (!camera.isStreamOpen()) {
@@ -17,24 +15,28 @@ export async function demonstrateCaptureOperations(cameraIndex: string): Promise
 
   // Capture a frame (returns Frame interface with RGBA data)
   console.log('\nCapturing frame...');
-  const frame: Frame = camera.captureFrame();
-  console.log('Frame captured:');
-  console.log('  Width:', frame.width);
-  console.log('  Height:', frame.height);
-  console.log('  Data size:', frame.data.length, 'bytes');
+  try {
+    const frame: Frame = camera.captureFrame();
+    console.log('Frame captured:');
+    console.log('  Width:', frame.width);
+    console.log('  Height:', frame.height);
+    console.log('  Data size:', frame.data.length, 'bytes');
+  } catch (error) {
+    console.log('Could not capture frame:', error instanceof Error ? error.message : error);
+  }
 
   // Get raw frame data as CameraBuffer
   console.log('\nGetting raw frame buffer...');
-  const rawBuffer: CameraBuffer = camera.frameRaw();
-  console.log('Raw buffer:');
-  console.log('  Width:', rawBuffer.width());
-  console.log('  Height:', rawBuffer.height());
-  console.log('  Size:', rawBuffer.size(), 'bytes');
-  console.log('  Format:', rawBuffer.sourceFrameFormat());
-
-  // Stop the camera
-  console.log('\nStopping camera...');
-  camera.stopStream();
+  try {
+    const rawBuffer: CameraBuffer = camera.frameRaw();
+    console.log('Raw buffer:');
+    console.log('  Width:', rawBuffer.width());
+    console.log('  Height:', rawBuffer.height());
+    console.log('  Size:', rawBuffer.size(), 'bytes');
+    console.log('  Format:', rawBuffer.sourceFrameFormat());
+  } catch (error) {
+    console.log('Could not get raw buffer:', error instanceof Error ? error.message : error);
+  }
 }
 
 /**

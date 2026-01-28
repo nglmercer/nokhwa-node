@@ -10,12 +10,8 @@ import {
 /**
  * Demonstrate basic Camera class operations
  */
-export async function demonstrateBasicCameraOperations(cameraIndex: string): Promise<void> {
+export async function demonstrateBasicCameraOperations(camera: Camera): Promise<void> {
   console.log('\n=== BASIC CAMERA OPERATIONS ===\n');
-
-  // Create camera instance (stream is opened automatically)
-  console.log('Creating camera instance...');
-  const camera = new Camera(cameraIndex);
 
   // Get camera index
   console.log('Camera index:', camera.index());
@@ -39,20 +35,13 @@ export async function demonstrateBasicCameraOperations(cameraIndex: string): Pro
   // Get compatible camera formats
   const compatibleFormats = camera.compatibleCameraFormats();
   console.log('Compatible formats:', compatibleFormats);
-
-  // Stop the camera stream
-  console.log('\nStopping camera stream...');
-  camera.stopStream();
-  console.log('Stream open after stop:', camera.isStreamOpen());
 }
 
 /**
  * Demonstrate advanced Camera class operations
  */
-export async function demonstrateAdvancedCameraOperations(cameraIndex: string): Promise<void> {
+export async function demonstrateAdvancedCameraOperations(camera: Camera): Promise<void> {
   console.log('\n=== ADVANCED CAMERA OPERATIONS ===\n');
-
-  const camera = new Camera(cameraIndex);
 
   // Refresh camera format
   console.log('Refreshing camera format...');
@@ -64,16 +53,24 @@ export async function demonstrateAdvancedCameraOperations(cameraIndex: string): 
   const highResRequest: RequestedFormatConfig = {
     requestType: RequestedFormatType.AbsoluteHighestResolution,
   };
-  const highResFormat = camera.setCameraRequest(highResRequest);
-  console.log('High resolution format:', highResFormat);
+  try {
+    const highResFormat = camera.setCameraRequest(highResRequest);
+    console.log('High resolution format:', highResFormat);
+  } catch (error) {
+    console.log('Could not set highest resolution:', error instanceof Error ? error.message : error);
+  }
 
   // Request highest frame rate format
   console.log('\nRequesting highest frame rate...');
   const highFpsRequest: RequestedFormatConfig = {
     requestType: RequestedFormatType.AbsoluteHighestFrameRate,
   };
-  const highFpsFormat = camera.setCameraRequest(highFpsRequest);
-  console.log('High frame rate format:', highFpsFormat);
+  try {
+    const highFpsFormat = camera.setCameraRequest(highFpsRequest);
+    console.log('High frame rate format:', highFpsFormat);
+  } catch (error) {
+    console.log('Could not set highest frame rate:', error instanceof Error ? error.message : error);
+  }
 
   // Get supported camera controls
   console.log('\nSupported camera controls:');
@@ -105,6 +102,4 @@ export async function demonstrateAdvancedCameraOperations(cameraIndex: string): 
       console.log(`Could not set ${control}:`, error instanceof Error ? error.message : error);
     }
   }
-
-  camera.stopStream();
 }

@@ -12,6 +12,8 @@ mod camera;
 mod conversions;
 mod types;
 
+use std::panic::{catch_unwind, AssertUnwindSafe};
+
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
@@ -343,10 +345,31 @@ pub fn buf_bgr_to_rgb(width: u32, height: u32, bgr: Buffer) -> Result<Buffer> {
 /// Convert MJPEG buffer to RGB
 #[napi]
 pub fn buf_mjpeg_to_rgb(width: u32, height: u32, mjpeg: Buffer) -> Result<Buffer> {
+  if mjpeg.is_empty() {
+    return Err(Error::from_reason("Empty MJPEG buffer".to_string()));
+  }
+
   let mut dest = vec![0u8; width as usize * height as usize * 3];
-  nokhwa::utils::buf_mjpeg_to_rgb(&mjpeg, &mut dest, false)
-    .map_err(|e| Error::from_reason(format!("Failed to convert MJPEG: {}", e)))?;
-  Ok(Buffer::from(dest))
+
+  // Nokhwa's MJPEG conversion can panic on invalid data in some cases
+  // We wrap it in catch_unwind to prevent process-wide abortion
+  let mjpeg_ref = &mjpeg;
+  let dest_ref = &mut dest;
+
+  let result = catch_unwind(AssertUnwindSafe(move || {
+    nokhwa::utils::buf_mjpeg_to_rgb(mjpeg_ref, dest_ref, false)
+  }));
+
+  match result {
+    Ok(Ok(_)) => Ok(Buffer::from(dest)),
+    Ok(Err(e)) => Err(Error::from_reason(format!(
+      "Failed to convert MJPEG: {}",
+      e
+    ))),
+    Err(_) => Err(Error::from_reason(
+      "MJPEG conversion panicked internally (likely due to invalid JPEG data)".to_string(),
+    )),
+  }
 }
 
 /// Convert NV12 buffer to RGB
@@ -354,35 +377,85 @@ pub fn buf_mjpeg_to_rgb(width: u32, height: u32, mjpeg: Buffer) -> Result<Buffer
 pub fn buf_nv12_to_rgb(width: u32, height: u32, nv12: Buffer) -> Result<Buffer> {
   let resolution = nokhwa::utils::Resolution::new(width, height);
   let mut dest = vec![0u8; width as usize * height as usize * 3];
-  nokhwa::utils::buf_nv12_to_rgb(resolution, &nv12, &mut dest, false)
-    .map_err(|e| Error::from_reason(format!("Failed to convert NV12: {}", e)))?;
-  Ok(Buffer::from(dest))
+
+  let nv12_ref = &nv12;
+  let dest_ref = &mut dest;
+
+  let result = catch_unwind(AssertUnwindSafe(move || {
+    nokhwa::utils::buf_nv12_to_rgb(resolution, nv12_ref, dest_ref, false)
+  }));
+
+  match result {
+    Ok(Ok(_)) => Ok(Buffer::from(dest)),
+    Ok(Err(e)) => Err(Error::from_reason(format!("Failed to convert NV12: {}", e))),
+    Err(_) => Err(Error::from_reason(
+      "NV12 conversion panicked internally".to_string(),
+    )),
+  }
 }
 
 /// Convert YUYV422 buffer to RGB
 #[napi]
 pub fn buf_yuyv422_to_rgb(width: u32, height: u32, yuyv: Buffer) -> Result<Buffer> {
   let mut dest = vec![0u8; width as usize * height as usize * 3];
-  nokhwa::utils::buf_yuyv422_to_rgb(&yuyv, &mut dest, false)
-    .map_err(|e| Error::from_reason(format!("Failed to convert YUYV: {}", e)))?;
-  Ok(Buffer::from(dest))
+
+  let yuyv_ref = &yuyv;
+  let dest_ref = &mut dest;
+
+  let result = catch_unwind(AssertUnwindSafe(move || {
+    nokhwa::utils::buf_yuyv422_to_rgb(yuyv_ref, dest_ref, false)
+  }));
+
+  match result {
+    Ok(Ok(_)) => Ok(Buffer::from(dest)),
+    Ok(Err(e)) => Err(Error::from_reason(format!("Failed to convert YUYV: {}", e))),
+    Err(_) => Err(Error::from_reason(
+      "YUYV conversion panicked internally".to_string(),
+    )),
+  }
 }
 
 /// Convert MJPEG to RGB (convenience function)
 #[napi]
 pub fn mjpeg_to_rgb(mjpeg: Buffer, _width: u32, _height: u32) -> Result<Buffer> {
-  let rgb = nokhwa::utils::mjpeg_to_rgb(&mjpeg, false)
-    .map_err(|e| Error::from_reason(format!("Failed to convert MJPEG: {}", e)))?;
-  Ok(Buffer::from(rgb))
+  if mjpeg.is_empty() {
+    return Err(Error::from_reason("Empty MJPEG buffer".to_string()));
+  }
+
+  let mjpeg_ref = &mjpeg;
+  let result = catch_unwind(AssertUnwindSafe(move || {
+    nokhwa::utils::mjpeg_to_rgb(mjpeg_ref, false)
+  }));
+
+  match result {
+    Ok(Ok(rgb)) => Ok(Buffer::from(rgb)),
+    Ok(Err(e)) => Err(Error::from_reason(format!(
+      "Failed to convert MJPEG: {}",
+      e
+    ))),
+    Err(_) => Err(Error::from_reason(
+      "MJPEG conversion panicked internally".to_string(),
+    )),
+  }
 }
 
 /// Convert NV12 to RGB (convenience function)
 #[napi]
 pub fn nv12_to_rgb(nv12: Buffer, width: u32, height: u32) -> Result<Buffer> {
   let resolution = nokhwa::utils::Resolution::new(width, height);
-  let rgb = nokhwa::utils::nv12_to_rgb(resolution, &nv12, false)
-    .map_err(|e| Error::from_reason(format!("Failed to convert NV12: {}", e)))?;
-  Ok(Buffer::from(rgb))
+
+  let nv12_ref = &nv12;
+  let result = catch_unwind(AssertUnwindSafe(move || {
+    nokhwa::utils::nv12_to_rgb(resolution, nv12_ref, false)
+  }));
+
+  match result {
+    Ok(Ok(rgb)) => Ok(Buffer::from(rgb)),
+    Ok(Err(e)) => Err(Error::from_reason(format!("Failed to convert NV12: {}", e))),
+    Err(_) => Err(Error::from_reason(
+      "NV12 conversion panicked internally".to_string(),
+    )),
+  }
 }
 
 /// Get predicted size for YUYV422 format
@@ -394,7 +467,16 @@ pub fn yuyv422_predicted_size(width: u32, height: u32) -> u32 {
 /// Convert YUYV422 to RGB (convenience function)
 #[napi]
 pub fn yuyv422_to_rgb(yuyv: Buffer, _width: u32, _height: u32) -> Result<Buffer> {
-  let rgb = nokhwa::utils::yuyv422_to_rgb(&yuyv, false)
-    .map_err(|e| Error::from_reason(format!("Failed to convert YUYV: {}", e)))?;
-  Ok(Buffer::from(rgb))
+  let yuyv_ref = &yuyv;
+  let result = catch_unwind(AssertUnwindSafe(move || {
+    nokhwa::utils::yuyv422_to_rgb(yuyv_ref, false)
+  }));
+
+  match result {
+    Ok(Ok(rgb)) => Ok(Buffer::from(rgb)),
+    Ok(Err(e)) => Err(Error::from_reason(format!("Failed to convert YUYV: {}", e))),
+    Err(_) => Err(Error::from_reason(
+      "YUYV conversion panicked internally".to_string(),
+    )),
+  }
 }

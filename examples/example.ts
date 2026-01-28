@@ -3,7 +3,7 @@
  * available in nokhwa-node. Modularized for better readability.
  */
 
-import { listCameras } from '../index.js';
+import { listCameras, Camera } from '../index.js';
 import { demonstrateUtilityFunctions, demonstrateEnums } from './modules/utilities.js';
 import { demonstrateCameraDiscovery } from './modules/discovery.js';
 import { demonstrateBasicCameraOperations, demonstrateAdvancedCameraOperations } from './modules/camera.js';
@@ -36,16 +36,23 @@ async function main(): Promise<void> {
       console.log('\n⚠️  No cameras found. Skipping camera-dependent demonstrations.');
     } else {
       const firstCameraIndex = cameras[0].index;
-      console.log(`\nUsing camera: ${cameras[0].name} (index: ${firstCameraIndex})`);
+      console.log(`\nInitializing camera: ${cameras[0].name} (index: ${firstCameraIndex})`);
+      
+      const camera = new Camera(firstCameraIndex);
 
-      // Basic camera operations
-      await demonstrateBasicCameraOperations(firstCameraIndex);
+      try {
+        // Basic camera operations
+        await demonstrateBasicCameraOperations(camera);
 
-      // Advanced camera operations
-      await demonstrateAdvancedCameraOperations(firstCameraIndex);
+        // Advanced camera operations
+        await demonstrateAdvancedCameraOperations(camera);
 
-      // Capture operations
-      await demonstrateCaptureOperations(firstCameraIndex);
+        // Capture operations
+        await demonstrateCaptureOperations(camera);
+      } finally {
+        console.log('\nStopping camera stream...');
+        camera.stopStream();
+      }
     }
 
     console.log({

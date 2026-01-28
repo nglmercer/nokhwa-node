@@ -1,22 +1,20 @@
-import { describe, it, expect } from 'bun:test'
+import test from 'node:test'
+import assert from 'node:assert'
 import { nokhwaCheck, frameFormats, allKnownCameraControls } from '../index.js'
 
-describe('nokhwa-node', () => {
-  it('nokhwa check function should return a boolean', () => {
-    const result = nokhwaCheck()
-    expect(typeof result).toBe('boolean')
-    // Don't require nokhwaCheck to be true - it returns false in headless/CI environments
-  })
+test('nokhwa check function should return a boolean', () => {
+  const result = nokhwaCheck()
+  assert.strictEqual(typeof result, 'boolean')
+})
 
-  it('frame formats function should return a non-empty array', () => {
-    const formats = frameFormats()
-    expect(Array.isArray(formats)).toBe(true)
-    expect(formats.length).toBeGreaterThan(0)
-  })
+test('frame formats function should return a non-empty array', () => {
+  const formats = frameFormats()
+  assert.strictEqual(Array.isArray(formats), true)
+  assert.ok(formats.length > 0)
+})
 
-  it('all known camera controls function should return a non-empty array', () => {
-    const controls = allKnownCameraControls()
-    expect(Array.isArray(controls)).toBe(true)
-    expect(controls.length).toBeGreaterThan(0)
-  })
+test('all known camera controls function should return a non-empty array', () => {
+  const controls = allKnownCameraControls()
+  assert.strictEqual(Array.isArray(controls), true)
+  assert.ok(controls.length > 0)
 })

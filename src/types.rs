@@ -48,6 +48,7 @@ pub enum KnownCameraControl {
   Exposure,
   Iris,
   Focus,
+  Other,
 }
 
 /// Control value types for setting camera properties

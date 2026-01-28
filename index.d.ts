@@ -155,7 +155,8 @@ export declare const enum KnownCameraControl {
   Zoom = 'Zoom',
   Exposure = 'Exposure',
   Iris = 'Iris',
-  Focus = 'Focus'
+  Focus = 'Focus',
+  Other = 'Other'
 }
 
 /** List all available cameras */

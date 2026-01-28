@@ -54,10 +54,18 @@ export async function demonstrateAdvancedCameraOperations(camera: Camera): Promi
     requestType: RequestedFormatType.AbsoluteHighestResolution,
   };
   try {
+    // On some platforms (especially Linux), we must stop the stream to change formats
+    const originalStreamState = camera.isStreamOpen();
+    if (originalStreamState) camera.stopStream();
+    
     const highResFormat = camera.setCameraRequest(highResRequest);
     console.log('High resolution format:', highResFormat);
+    
+    if (originalStreamState) camera.openStream();
   } catch (error) {
     console.log('Could not set highest resolution:', error instanceof Error ? error.message : error);
+    // Ensure stream is restarted if it was open
+    if (camera.isStreamOpen() === false) try { camera.openStream(); } catch(e) {}
   }
 
   // Request highest frame rate format
@@ -66,10 +74,16 @@ export async function demonstrateAdvancedCameraOperations(camera: Camera): Promi
     requestType: RequestedFormatType.AbsoluteHighestFrameRate,
   };
   try {
+    const originalStreamState = camera.isStreamOpen();
+    if (originalStreamState) camera.stopStream();
+
     const highFpsFormat = camera.setCameraRequest(highFpsRequest);
     console.log('High frame rate format:', highFpsFormat);
+
+    if (originalStreamState) camera.openStream();
   } catch (error) {
     console.log('Could not set highest frame rate:', error instanceof Error ? error.message : error);
+    if (camera.isStreamOpen() === false) try { camera.openStream(); } catch(e) {}
   }
 
   // Get supported camera controls
@@ -99,7 +113,7 @@ export async function demonstrateAdvancedCameraOperations(camera: Camera): Promi
       camera.setCameraControl(control, value);
       console.log(`Set ${control} to ${JSON.stringify(value.field0)}`);
     } catch (error) {
-      console.log(`Could not set ${control}:`, error instanceof Error ? error.message : error);
+      console.log(`Note: Setting ${control} failed (common with some hardware/drivers):`, error instanceof Error ? error.message : error);
     }
   }
 }

@@ -2,7 +2,7 @@
 authors = ["nglmercer"]
 edition = "2021"
 name    = "nokhwa-node"
-version = "0.1.5"
+version = "0.1.6"
 
 [lib]
 crate-type = ["cdylib"]

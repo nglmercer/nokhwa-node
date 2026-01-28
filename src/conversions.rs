@@ -215,7 +215,7 @@ pub fn convert_known_control(control: nokhwa::utils::KnownCameraControl) -> Know
     nokhwa::utils::KnownCameraControl::Exposure => KnownCameraControl::Exposure,
     nokhwa::utils::KnownCameraControl::Iris => KnownCameraControl::Iris,
     nokhwa::utils::KnownCameraControl::Focus => KnownCameraControl::Focus,
-    nokhwa::utils::KnownCameraControl::Other(_) => KnownCameraControl::Brightness, // Default fallback
+    nokhwa::utils::KnownCameraControl::Other(_) => KnownCameraControl::Other,
   }
 }
 
@@ -239,6 +239,7 @@ pub fn convert_known_control_to_nokhwa(
     KnownCameraControl::Exposure => nokhwa::utils::KnownCameraControl::Exposure,
     KnownCameraControl::Iris => nokhwa::utils::KnownCameraControl::Iris,
     KnownCameraControl::Focus => nokhwa::utils::KnownCameraControl::Focus,
+    KnownCameraControl::Other => nokhwa::utils::KnownCameraControl::Other(0), // Dummy ID
   }
 }
 

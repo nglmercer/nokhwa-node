@@ -42,7 +42,7 @@ export function demonstrateBufferConversions(): void {
     const rgbFromMjpeg = bufMjpegToRgb(width, height, mjpegBuffer);
     console.log('MJPEG to RGB result size:', rgbFromMjpeg.length, 'bytes');
   } catch (error) {
-    console.log('MJPEG conversion failed (expected if header is invalid):', error instanceof Error ? error.message : error);
+    console.log('MJPEG conversion skipped (expected - invalid test data):', error instanceof Error ? error.message : error);
   }
 
   // Demonstrate mjpegToRgb (convenience function)
@@ -51,7 +51,7 @@ export function demonstrateBufferConversions(): void {
     const rgbFromMjpeg2 = mjpegToRgb(mjpegBuffer, width, height);
     console.log('Result size:', rgbFromMjpeg2.length, 'bytes');
   } catch (error) {
-    console.log('MJPEG convenience conversion failed:', error instanceof Error ? error.message : error);
+    console.log('MJPEG convenience conversion skipped (expected - invalid test data):', error instanceof Error ? error.message : error);
   }
 
   // Demonstrate bufNv12ToRgb

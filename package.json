@@ -1,6 +1,6 @@
 {
   "name": "nokhwa-node",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Node.js bindings for nokhwa camera library using napi-rs",
   "main": "index.js",
   "repository": {
@@ -62,7 +62,7 @@
     "format:rs": "cargo fmt",
     "lint": "npx oxlint .",
     "prepublishOnly": "napi prepublish -t npm",
-    "test": "node --import tsx --test __test__/*.test.ts",
+    "test": "tsx --test __test__/*.test.ts",
     "preversion": "napi build --platform && git add .",
     "version": "napi version",
     "prepare": "husky",

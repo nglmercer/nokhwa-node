@@ -18,7 +18,11 @@ export declare class Camera {
   backend(): ApiBackend
   /** Get camera information */
   info(): CameraDevice
-  /** Get the current camera format */
+  /**
+   * Get the current camera format
+   * Note: This returns the requested frame rate. Use refresh_camera_format()
+   * to get the actual active frame rate from the camera.
+   */
   cameraFormat(): CameraFormat
   /** Refresh and get the camera format */
   refreshCameraFormat(): CameraFormat

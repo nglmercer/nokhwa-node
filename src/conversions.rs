@@ -258,51 +258,37 @@ pub fn convert_control_value(value: ControlValueSetter) -> nokhwa::utils::Contro
 pub fn create_camera_with_fallback(
   index: nokhwa::utils::CameraIndex,
 ) -> napi::Result<nokhwa::Camera> {
-  use nokhwa::pixel_format::{RgbAFormat, RgbFormat, YuyvFormat};
+  use nokhwa::pixel_format::{LumaFormat, RgbAFormat, RgbFormat, YuyvFormat};
+  use nokhwa::utils::{RequestedFormat, RequestedFormatType};
 
-  // Priority 1: Try highest frame rate first (should select 30fps+ if available)
-  let formats = vec![
-    nokhwa::utils::RequestedFormat::new::<RgbAFormat>(
-      nokhwa::utils::RequestedFormatType::AbsoluteHighestFrameRate,
-    ),
-    nokhwa::utils::RequestedFormat::new::<RgbFormat>(
-      nokhwa::utils::RequestedFormatType::AbsoluteHighestFrameRate,
-    ),
-    nokhwa::utils::RequestedFormat::new::<YuyvFormat>(
-      nokhwa::utils::RequestedFormatType::AbsoluteHighestFrameRate,
-    ),
-    // Priority 2: Fall back to highest resolution if high FPS not available
-    nokhwa::utils::RequestedFormat::new::<RgbAFormat>(
-      nokhwa::utils::RequestedFormatType::AbsoluteHighestResolution,
-    ),
-    nokhwa::utils::RequestedFormat::new::<RgbFormat>(
-      nokhwa::utils::RequestedFormatType::AbsoluteHighestResolution,
-    ),
-    nokhwa::utils::RequestedFormat::new::<YuyvFormat>(
-      nokhwa::utils::RequestedFormatType::AbsoluteHighestResolution,
-    ),
+  // List of (PixelFormat, Strategy) to try
+  // We prefer RgbA at high FPS, but will take anything that works
+  let strategies = vec![
+    (RequestedFormatType::AbsoluteHighestFrameRate, "RgbA"),
+    (RequestedFormatType::AbsoluteHighestFrameRate, "Rgb"),
+    (RequestedFormatType::AbsoluteHighestResolution, "RgbA"),
+    (RequestedFormatType::AbsoluteHighestResolution, "Rgb"),
+    (RequestedFormatType::AbsoluteHighestFrameRate, "Yuyv"),
+    (RequestedFormatType::AbsoluteHighestFrameRate, "Luma"),
   ];
 
-  let formats_len = formats.len();
+  for (strategy, format_name) in strategies {
+    let request = match format_name {
+      "RgbA" => RequestedFormat::new::<RgbAFormat>(strategy),
+      "Rgb" => RequestedFormat::new::<RgbFormat>(strategy),
+      "Yuyv" => RequestedFormat::new::<YuyvFormat>(strategy),
+      "Luma" => RequestedFormat::new::<LumaFormat>(strategy),
+      _ => RequestedFormat::new::<RgbFormat>(strategy),
+    };
 
-  for (i, format) in formats.into_iter().enumerate() {
-    match nokhwa::Camera::new(index.clone(), format) {
-      Ok(mut cam) => {
-        // Try to open the stream to verify the format works
-        if cam.open_stream().is_ok() {
-          return Ok(cam);
-        }
-      }
-      Err(e) => {
-        if i == formats_len - 1 {
-          return Err(Error::from_reason(format!(
-            "Failed to create camera with any format: {}",
-            e
-          )));
-        }
+    if let Ok(mut cam) = nokhwa::Camera::new(index.clone(), request) {
+      if cam.open_stream().is_ok() {
+        return Ok(cam);
       }
     }
   }
 
-  Err(Error::from_reason("Failed to create camera".to_string()))
+  Err(Error::from_reason(
+    "Failed to create camera: No compatible format found or device is busy".to_string(),
+  ))
 }

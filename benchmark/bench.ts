@@ -5,6 +5,7 @@ async function main() {
     console.log('🎥 Nokhwa-Node Optimized Benchmark\n' + '='.repeat(40));
 
     const cameras = listCameras();
+    console.log(`Devices found:`, cameras);
     if (cameras.length === 0) throw new Error('No cameras found');
 
     const camera = new Camera(cameras[0].index);

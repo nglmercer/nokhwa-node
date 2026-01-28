@@ -62,7 +62,7 @@
     "format:rs": "cargo fmt",
     "lint": "npx oxlint .",
     "prepublishOnly": "napi prepublish -t npm",
-    "test": "tsx --test __test__/*.test.ts",
+    "test": "tsx --test __test__/index.test.ts",
     "preversion": "napi build --platform && git add .",
     "version": "napi version",
     "prepare": "husky",

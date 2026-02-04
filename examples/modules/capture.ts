@@ -1,77 +1,32 @@
 import { Camera, CameraBuffer, type Frame } from '../../index.js';
 
 /**
- * Demonstrate frame capture operations
+ * Demonstrate frame capture operations - minimal output
  */
 export async function demonstrateCaptureOperations(camera: Camera): Promise<void> {
-  console.log('\n=== CAPTURE OPERATIONS ===\n');
-
-  // Ensure stream is open
+  console.log('[Capture] Opening stream...');
   if (!camera.isStreamOpen()) {
-    console.log('Opening camera stream...');
     camera.openStream();
-    console.log('Stream open:', camera.isStreamOpen());
   }
 
-  // Capture a frame (returns Frame interface with RGBA data)
-  console.log('\nCapturing frame...');
-  try {
-    const frame: Frame = camera.captureFrame();
-    console.log('Frame captured:');
-    console.log('  Width:', frame.width);
-    console.log('  Height:', frame.height);
-    console.log('  Data size:', frame.data.length, 'bytes');
-  } catch (error) {
-    console.log('Could not capture frame:', error instanceof Error ? error.message : error);
-  }
+  console.log('[Capture] Capturing frame...');
+  const frame: Frame = camera.captureFrame();
+  console.log('[Capture] Frame:', frame.width, 'x', frame.height, '-', frame.data.length, 'bytes');
 
-  // Get raw frame data as CameraBuffer
-  console.log('\nGetting raw frame buffer...');
-  try {
-    const rawBuffer: CameraBuffer = camera.frameRaw();
-    console.log('Raw buffer:');
-    console.log('  Width:', rawBuffer.width());
-    console.log('  Height:', rawBuffer.height());
-    console.log('  Size:', rawBuffer.size(), 'bytes');
-    console.log('  Format:', rawBuffer.sourceFrameFormat());
-  } catch (error) {
-    console.log('Could not get raw buffer:', error instanceof Error ? error.message : error);
-  }
+  console.log('[Capture] Raw buffer:', camera.frameRaw().width(), 'x', camera.frameRaw().height());
 }
 
 /**
- * Demonstrate CameraBuffer class usage
+ * Demonstrate CameraBuffer class usage - minimal output
  */
 import { FrameFormat, type Resolution } from '../../index.js';
 
 export function demonstrateCameraBuffer(): void {
-  console.log('\n=== CAMERA BUFFER CLASS ===\n');
-
-  // Create a sample resolution
-  const resolution: Resolution = {
-    width: 640,
-    height: 480,
-  };
-
-  // Create sample buffer data (in real usage, this would come from camera)
+  console.log('[Buffer] Creating test buffer...');
+  const resolution: Resolution = { width: 640, height: 480 };
   const sampleData = Buffer.alloc(resolution.width * resolution.height * 3);
+  const cameraBuffer = new CameraBuffer(resolution, sampleData, FrameFormat.RGB);
 
-  // Create CameraBuffer instance
-  const cameraBuffer = new CameraBuffer(
-    resolution,
-    sampleData,
-    FrameFormat.RGB
-  );
-
-  // Demonstrate all CameraBuffer methods
-  console.log('Buffer resolution:', cameraBuffer.resolution());
-  console.log('Buffer width:', cameraBuffer.width());
-  console.log('Buffer height:', cameraBuffer.height());
-  console.log('Buffer size:', cameraBuffer.size(), 'bytes');
-  console.log('Buffer is empty:', cameraBuffer.isEmpty());
-  console.log('Buffer format:', cameraBuffer.sourceFrameFormat());
-
-  // Get raw buffer data
-  const bufferData = cameraBuffer.data();
-  console.log('Buffer data length:', bufferData.length);
+  console.log('[Buffer]', cameraBuffer.width(), 'x', cameraBuffer.height(), '-', cameraBuffer.size(), 'bytes');
+  console.log('[Buffer] Empty:', cameraBuffer.isEmpty(), '- Format:', cameraBuffer.sourceFrameFormat());
 }

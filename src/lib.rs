@@ -45,12 +45,13 @@ pub struct Camera {
 
 impl Drop for Camera {
   fn drop(&mut self) {
-    // If camera is still Some, close the stream before dropping
-    if let Some(mut cam) = self.camera.take() {
-      // Use catch_unwind to prevent panics during cleanup
+    // First try to stop the stream if it exists
+    // This is critical on Windows with MediaFoundation backend
+    if let Some(cam) = self.camera.as_mut() {
       let _ = catch_unwind(AssertUnwindSafe(|| cam.stop_stream()));
-      // ManuallyDrop ensures the camera is now dropped
     }
+    // Then drop the camera
+    let _ = self.camera.take();
   }
 }
 
@@ -250,10 +251,7 @@ impl Camera {
   /// Check if stream is open
   #[napi]
   pub fn is_stream_open(&self) -> bool {
-    self
-      .camera
-      .as_ref()
-      .map_or(false, |cam| cam.is_stream_open())
+    self.camera.as_ref().is_some_and(|cam| cam.is_stream_open())
   }
 
   /// Open the camera stream
@@ -272,23 +270,23 @@ impl Camera {
   /// Stop the camera stream
   #[napi]
   pub fn stop_stream(&mut self) -> Result<()> {
-    // Take the camera out first
-    let camera = self
+    // Get reference to camera without taking ownership
+    let cam = self
       .camera
-      .take()
+      .as_mut()
       .ok_or_else(|| Error::from_reason("Camera is already stopped or closed"))?;
 
-    // Properly close the stream before dropping
+    // Close the stream
     // This is critical on Windows with MediaFoundation backend
     // to avoid segmentation faults during cleanup
-    let mut cam = ManuallyDrop::into_inner(camera);
     let close_result = catch_unwind(AssertUnwindSafe(|| cam.stop_stream()));
 
-    // Ignore errors from close - we're cleaning up anyway
-    // The important thing is the camera is dropped
+    // Ignore errors from close - the camera will be dropped anyway
     let _ = close_result;
 
-    // Camera is dropped here, releasing resources properly
+    // Note: We don't take ownership here - Drop will handle cleanup
+    // This prevents double-close issues
+
     Ok(())
   }
 

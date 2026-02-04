@@ -6,7 +6,10 @@ async function main() {
 
     const cameras = listCameras();
     console.log(`Devices found:`, cameras);
-    if (cameras.length === 0) throw new Error('No cameras found');
+    if (cameras.length === 0) {
+        console.log('⏭️  No cameras available - skipping benchmark');
+        return;
+    }
 
     const camera = new Camera(cameras[0].index);
     

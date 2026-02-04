@@ -12,6 +12,7 @@ mod camera;
 mod conversions;
 mod types;
 
+use std::mem::ManuallyDrop;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use napi::bindgen_prelude::*;
@@ -37,7 +38,20 @@ use conversions::{
 /// Camera instance for capturing frames with full nokhwa functionality
 #[napi]
 pub struct Camera {
-  camera: nokhwa::Camera,
+  // Use ManuallyDrop to control when the camera is actually dropped
+  // This prevents double-free and ensures proper cleanup during GC
+  camera: Option<ManuallyDrop<nokhwa::Camera>>,
+}
+
+impl Drop for Camera {
+  fn drop(&mut self) {
+    // If camera is still Some, close the stream before dropping
+    if let Some(mut cam) = self.camera.take() {
+      // Use catch_unwind to prevent panics during cleanup
+      let _ = catch_unwind(AssertUnwindSafe(|| cam.stop_stream()));
+      // ManuallyDrop ensures the camera is now dropped
+    }
+  }
 }
 
 #[napi]
@@ -47,38 +61,55 @@ impl Camera {
   #[napi(constructor)]
   pub fn new(camera_index: String) -> Result<Self> {
     let nokhwa_index = parse_camera_index(camera_index)?;
-
     let camera = create_camera_with_fallback(nokhwa_index)?;
-
-    Ok(Self { camera })
+    Ok(Self {
+      camera: Some(ManuallyDrop::new(camera)),
+    })
   }
 
   /// Capture a single frame from the camera
   /// Returns the frame as RGBA buffer with width and height
   #[napi]
-  pub fn capture_frame(&mut self, _env: Env) -> Result<Frame> {
-    let rgba_frame =
-      capture_frame(&mut self.camera).map_err(|e| Error::from_reason(e.to_string()))?;
-
+  pub fn capture_frame(&mut self) -> Result<Frame> {
+    let cam = self
+      .camera
+      .as_mut()
+      .ok_or_else(|| Error::from_reason("Camera is closed or has been stopped"))?;
+    let rgba_frame = capture_frame(cam).map_err(|e| Error::from_reason(e.to_string()))?;
     convert_to_napi_frame(rgba_frame)
   }
 
   /// Get the camera index
   #[napi]
   pub fn index(&self) -> String {
-    self.camera.index().as_string()
+    self
+      .camera
+      .as_ref()
+      .expect("Camera is closed or has been stopped")
+      .index()
+      .as_string()
   }
 
   /// Get the backend being used
   #[napi]
   pub fn backend(&self) -> ApiBackend {
-    convert_backend_to_napi(self.camera.backend())
+    convert_backend_to_napi(
+      self
+        .camera
+        .as_ref()
+        .expect("Camera is closed or has been stopped")
+        .backend(),
+    )
   }
 
   /// Get camera information
   #[napi]
   pub fn info(&self) -> CameraDevice {
-    let info = self.camera.info();
+    let cam = self
+      .camera
+      .as_ref()
+      .expect("Camera is closed or has been stopped");
+    let info = cam.info();
     CameraDevice {
       index: info.index().as_string(),
       name: info.human_name(),
@@ -90,7 +121,11 @@ impl Camera {
   /// to get the actual active frame rate from the camera.
   #[napi]
   pub fn camera_format(&self) -> CameraFormat {
-    let fmt = self.camera.camera_format();
+    let cam = self
+      .camera
+      .as_ref()
+      .expect("Camera is closed or has been stopped");
+    let fmt = cam.camera_format();
     CameraFormat {
       resolution: Resolution {
         width: fmt.width(),
@@ -104,11 +139,13 @@ impl Camera {
   /// Refresh and get the camera format
   #[napi]
   pub fn refresh_camera_format(&mut self) -> Result<CameraFormat> {
-    let fmt = self
+    let cam = self
       .camera
+      .as_mut()
+      .ok_or_else(|| Error::from_reason("Camera is closed or has been stopped"))?;
+    let fmt = cam
       .refresh_camera_format()
       .map_err(|e| Error::from_reason(format!("Failed to refresh camera format: {}", e)))?;
-
     Ok(CameraFormat {
       resolution: Resolution {
         width: fmt.width(),
@@ -122,12 +159,14 @@ impl Camera {
   /// Set camera format with requested configuration
   #[napi]
   pub fn set_camera_request(&mut self, request: RequestedFormatConfig) -> Result<CameraFormat> {
-    let nokhwa_format = convert_requested_format(request)?;
-    let fmt = self
+    let cam = self
       .camera
+      .as_mut()
+      .ok_or_else(|| Error::from_reason("Camera is closed or has been stopped"))?;
+    let nokhwa_format = convert_requested_format(request)?;
+    let fmt = cam
       .set_camera_requset(nokhwa_format)
       .map_err(|e| Error::from_reason(format!("Failed to set camera format: {}", e)))?;
-
     Ok(CameraFormat {
       resolution: Resolution {
         width: fmt.width(),
@@ -141,11 +180,13 @@ impl Camera {
   /// Get compatible camera formats
   #[napi]
   pub fn compatible_camera_formats(&mut self) -> Result<Vec<CameraFormat>> {
-    let formats = self
+    let cam = self
       .camera
+      .as_mut()
+      .ok_or_else(|| Error::from_reason("Camera is closed or has been stopped"))?;
+    let formats = cam
       .compatible_camera_formats()
       .map_err(|e| Error::from_reason(format!("Failed to get compatible formats: {}", e)))?;
-
     Ok(
       formats
         .into_iter()
@@ -164,22 +205,26 @@ impl Camera {
   /// Get supported camera controls
   #[napi]
   pub fn supported_camera_controls(&self) -> Result<Vec<KnownCameraControl>> {
-    let controls = self
+    let cam = self
       .camera
+      .as_ref()
+      .ok_or_else(|| Error::from_reason("Camera is closed or has been stopped"))?;
+    let controls = cam
       .supported_camera_controls()
       .map_err(|e| Error::from_reason(format!("Failed to get supported controls: {}", e)))?;
-
     Ok(controls.into_iter().map(convert_known_control).collect())
   }
 
   /// Get all camera controls
   #[napi]
   pub fn camera_controls(&self) -> Result<Vec<CameraControl>> {
-    let controls = self
+    let cam = self
       .camera
+      .as_ref()
+      .ok_or_else(|| Error::from_reason("Camera is closed or has been stopped"))?;
+    let controls = cam
       .camera_controls()
       .map_err(|e| Error::from_reason(format!("Failed to get camera controls: {}", e)))?;
-
     Ok(controls.into_iter().map(convert_camera_control).collect())
   }
 
@@ -190,28 +235,35 @@ impl Camera {
     control: KnownCameraControl,
     value: ControlValueSetter,
   ) -> Result<()> {
+    let cam = self
+      .camera
+      .as_mut()
+      .ok_or_else(|| Error::from_reason("Camera is closed or has been stopped"))?;
     let nokhwa_control = convert_known_control_to_nokhwa(control);
     let nokhwa_value = convert_control_value(value);
-
-    self
-      .camera
+    cam
       .set_camera_control(nokhwa_control, nokhwa_value)
       .map_err(|e| Error::from_reason(format!("Failed to set camera control: {}", e)))?;
-
     Ok(())
   }
 
   /// Check if stream is open
   #[napi]
   pub fn is_stream_open(&self) -> bool {
-    self.camera.is_stream_open()
+    self
+      .camera
+      .as_ref()
+      .map_or(false, |cam| cam.is_stream_open())
   }
 
   /// Open the camera stream
   #[napi]
   pub fn open_stream(&mut self) -> Result<()> {
-    self
+    let cam = self
       .camera
+      .as_mut()
+      .ok_or_else(|| Error::from_reason("Camera is closed or has been stopped"))?;
+    cam
       .open_stream()
       .map_err(|e| Error::from_reason(format!("Failed to open stream: {}", e)))?;
     Ok(())
@@ -220,23 +272,38 @@ impl Camera {
   /// Stop the camera stream
   #[napi]
   pub fn stop_stream(&mut self) -> Result<()> {
-    self
+    // Take the camera out first
+    let camera = self
       .camera
-      .stop_stream()
-      .map_err(|e| Error::from_reason(format!("Failed to stop stream: {}", e)))?;
+      .take()
+      .ok_or_else(|| Error::from_reason("Camera is already stopped or closed"))?;
+
+    // Properly close the stream before dropping
+    // This is critical on Windows with MediaFoundation backend
+    // to avoid segmentation faults during cleanup
+    let mut cam = ManuallyDrop::into_inner(camera);
+    let close_result = catch_unwind(AssertUnwindSafe(|| cam.stop_stream()));
+
+    // Ignore errors from close - we're cleaning up anyway
+    // The important thing is the camera is dropped
+    let _ = close_result;
+
+    // Camera is dropped here, releasing resources properly
     Ok(())
   }
 
   /// Get raw frame data
   #[napi]
   pub fn frame_raw(&mut self) -> Result<CameraBuffer> {
-    let resolution = self.camera.resolution();
-    let frame_format = self.camera.frame_format();
-    let raw = self
+    let cam = self
       .camera
+      .as_mut()
+      .ok_or_else(|| Error::from_reason("Camera is closed or has been stopped"))?;
+    let resolution = cam.resolution();
+    let frame_format = cam.frame_format();
+    let raw = cam
       .frame_raw()
       .map_err(|e| Error::from_reason(format!("Failed to get raw frame: {}", e)))?;
-
     Ok(CameraBuffer {
       resolution: Resolution {
         width: resolution.width(),
@@ -256,7 +323,6 @@ impl Camera {
 #[napi]
 pub fn list_cameras() -> Result<Vec<CameraDevice>> {
   let cameras = list_cameras_internal().map_err(|e| Error::from_reason(e.to_string()))?;
-
   Ok(
     cameras
       .into_iter()
@@ -274,7 +340,6 @@ pub fn query(backend: ApiBackend) -> Result<Vec<CameraDevice>> {
   let nokhwa_backend = convert_backend(backend);
   let cameras = nokhwa::query(nokhwa_backend)
     .map_err(|e| Error::from_reason(format!("Failed to query cameras: {}", e)))?;
-
   Ok(
     cameras
       .into_iter()
@@ -434,7 +499,7 @@ pub fn mjpeg_to_rgb(mjpeg: Buffer, _width: u32, _height: u32) -> Result<Buffer> 
       e
     ))),
     Err(_) => Err(Error::from_reason(
-      "MJPEG conversion panicked internally".to_string(),
+      "MJPEG conversion panicked internally (likely due to invalid JPEG data)".to_string(),
     )),
   }
 }

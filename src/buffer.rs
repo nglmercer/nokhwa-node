@@ -35,7 +35,10 @@ impl CameraBuffer {
   /// Get the raw buffer data
   #[napi]
   pub fn data(&self) -> Buffer {
-    Buffer::from(self.data.clone())
+    // IMPORTANT: Clone the data to ensure we return a独立-owned Buffer
+    // This prevents dangling references when Bun accesses the buffer later
+    let owned_data = self.data.clone();
+    Buffer::from(owned_data)
   }
 
   /// Get the source frame format

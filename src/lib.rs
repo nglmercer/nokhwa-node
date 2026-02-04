@@ -68,6 +68,19 @@ impl Camera {
     })
   }
 
+  /// Create a new camera instance with the given index and format configuration
+  /// The camera stream is opened immediately with the specified format
+  #[napi]
+  pub fn new_with_format(camera_index: String, format_config: RequestedFormatConfig) -> Result<Self> {
+    let nokhwa_index = parse_camera_index(camera_index)?;
+    let nokhwa_format = convert_requested_format(format_config)?;
+    let camera = nokhwa::Camera::new(nokhwa_index, nokhwa_format)
+      .map_err(|e| Error::from_reason(format!("Failed to create camera: {}", e)))?;
+    Ok(Self {
+      camera: Some(ManuallyDrop::new(camera)),
+    })
+  }
+
   /// Capture a single frame from the camera
   /// Returns the frame as RGBA buffer with width and height
   #[napi]

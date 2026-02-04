@@ -105,4 +105,5 @@ pub struct CameraDevice {
 #[napi(object)]
 pub struct RequestedFormatConfig {
   pub request_type: RequestedFormatType,
+  pub format: Option<FrameFormat>,
 }

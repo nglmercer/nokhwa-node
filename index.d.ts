@@ -8,6 +8,11 @@ export declare class Camera {
    */
   constructor(cameraIndex: string)
   /**
+   * Create a new camera instance with the given index and format configuration
+   * The camera stream is opened immediately with the specified format
+   */
+  static newWithFormat(cameraIndex: string, formatConfig: RequestedFormatConfig): Camera
+  /**
    * Capture a single frame from the camera
    * Returns the frame as RGBA buffer with width and height
    */
@@ -180,6 +185,7 @@ export declare function query(backend: ApiBackend): Array<CameraDevice>
 /** Requested format configuration */
 export interface RequestedFormatConfig {
   requestType: RequestedFormatType
+  format?: FrameFormat
 }
 
 /** Format request types for automatic format selection */

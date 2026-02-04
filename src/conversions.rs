@@ -23,7 +23,6 @@ pub struct RgbaFrame {
 }
 
 /// Captures a single frame from camera and converts it to RGBA format
-/// This is a pure utility function that handles all format conversions
 pub fn capture_frame(camera: &mut nokhwa::Camera) -> anyhow::Result<RgbaFrame> {
   let buffer = camera
     .frame()
@@ -36,7 +35,7 @@ pub fn capture_frame(camera: &mut nokhwa::Camera) -> anyhow::Result<RgbaFrame> {
 
   // Decode buffer based on its format
   let data = match source_format {
-    // MJPEG format - decode as RGBA
+    // MJPEG format - decode as RGBA directly
     FrameFormat::MJPEG => {
       let decoded = buffer
         .decode_image::<RgbAFormat>()
@@ -57,18 +56,13 @@ pub fn capture_frame(camera: &mut nokhwa::Camera) -> anyhow::Result<RgbaFrame> {
         .map_err(|e| anyhow!("Decoding NV12: {}", e))?;
       decoded.to_vec()
     }
-    // For other formats, try RGB then RGBA decoder
+    // For other formats
     _ => {
-      // Try RGB format decoder first
       if let Ok(decoded) = buffer.decode_image::<RgbFormat>() {
         rgb_to_rgba(&decoded)
-      }
-      // Fall back to RGBA decoder
-      else if let Ok(decoded) = buffer.decode_image::<RgbAFormat>() {
+      } else if let Ok(decoded) = buffer.decode_image::<RgbAFormat>() {
         decoded.to_vec()
-      }
-      // If all else fails, return error
-      else {
+      } else {
         return Err(anyhow!(
           "Failed to decode frame with format {:?}",
           source_format
@@ -96,8 +90,8 @@ pub fn convert_to_napi_frame(rgba_frame: RgbaFrame) -> napi::Result<Frame> {
 }
 
 /// Converts RGB buffer to RGBA by adding alpha channel (255)
-/// This is a pure utility function for format conversion
-pub fn rgb_to_rgba(rgb: &[u8]) -> Vec<u8> {
+#[inline]
+fn rgb_to_rgba(rgb: &[u8]) -> Vec<u8> {
   let mut rgba = Vec::with_capacity(rgb.len() / 3 * 4);
   for chunk in rgb.chunks_exact(3) {
     rgba.push(chunk[0]); // R
@@ -173,7 +167,7 @@ pub fn convert_frame_format(format: nokhwa::utils::FrameFormat) -> crate::types:
 pub fn convert_requested_format(
   config: RequestedFormatConfig,
 ) -> napi::Result<nokhwa::utils::RequestedFormat<'static>> {
-  use nokhwa::pixel_format::RgbAFormat;
+  use nokhwa::pixel_format::{RgbAFormat, RgbFormat, YuyvFormat};
 
   let request_type = match config.request_type {
     RequestedFormatType::AbsoluteHighestResolution => {
@@ -184,9 +178,17 @@ pub fn convert_requested_format(
     }
   };
 
-  Ok(nokhwa::utils::RequestedFormat::new::<RgbAFormat>(
-    request_type,
-  ))
+  // Use specified format if provided, otherwise use RgbA as default
+  // Note: NV12, MJPEG are runtime formats that cameras report but cannot be requested
+  let request = match config.format {
+    Some(crate::types::FrameFormat::YUYV) => nokhwa::utils::RequestedFormat::new::<YuyvFormat>(request_type),
+    Some(crate::types::FrameFormat::RGB) => nokhwa::utils::RequestedFormat::new::<RgbFormat>(request_type),
+    Some(crate::types::FrameFormat::RGBA) | Some(crate::types::FrameFormat::NV12) | Some(crate::types::FrameFormat::MJPEG) | Some(crate::types::FrameFormat::GRAY) | None => {
+      nokhwa::utils::RequestedFormat::new::<RgbAFormat>(request_type)
+    }
+  };
+
+  Ok(request)
 }
 
 /// Convert nokhwa camera control to N-API camera control
@@ -264,6 +266,7 @@ pub fn create_camera_with_fallback(
 
   // List of (PixelFormat, Strategy) to try
   // We prefer RgbA at high FPS, but will take anything that works
+  // Note: NV12/MJPEG are runtime formats, not requestable formats
   let strategies = vec![
     (RequestedFormatType::AbsoluteHighestFrameRate, "RgbA"),
     (RequestedFormatType::AbsoluteHighestFrameRate, "Rgb"),

@@ -167,7 +167,7 @@ pub fn convert_frame_format(format: nokhwa::utils::FrameFormat) -> crate::types:
 pub fn convert_requested_format(
   config: RequestedFormatConfig,
 ) -> napi::Result<nokhwa::utils::RequestedFormat<'static>> {
-  use nokhwa::pixel_format::{RgbAFormat, RgbFormat, YuyvFormat};
+  use nokhwa::pixel_format::{LumaFormat, RgbAFormat, RgbFormat, YuyvFormat};
 
   let request_type = match config.request_type {
     RequestedFormatType::AbsoluteHighestResolution => {
@@ -178,12 +178,31 @@ pub fn convert_requested_format(
     }
   };
 
-  // Use specified format if provided, otherwise use RgbA as default
-  // Note: NV12, MJPEG are runtime formats that cameras report but cannot be requested
+  // NV12, MJPEG are runtime formats that cameras report but cannot be directly requested.
+  // When user requests NV12, we use YuyvFormat as it has similar characteristics (compressed YUV format)
+  // and the camera will use its native format. The actual format will be determined by the camera
+  // and can be checked with refresh_camera_format() or camera_format().
+  // For MJPEG, we use RgbAFormat as it's typically the fastest option.
   let request = match config.format {
-    Some(crate::types::FrameFormat::YUYV) => nokhwa::utils::RequestedFormat::new::<YuyvFormat>(request_type),
-    Some(crate::types::FrameFormat::RGB) => nokhwa::utils::RequestedFormat::new::<RgbFormat>(request_type),
-    Some(crate::types::FrameFormat::RGBA) | Some(crate::types::FrameFormat::NV12) | Some(crate::types::FrameFormat::MJPEG) | Some(crate::types::FrameFormat::GRAY) | None => {
+    Some(crate::types::FrameFormat::YUYV) => {
+      nokhwa::utils::RequestedFormat::new::<YuyvFormat>(request_type)
+    }
+    Some(crate::types::FrameFormat::RGB) => {
+      nokhwa::utils::RequestedFormat::new::<RgbFormat>(request_type)
+    }
+    Some(crate::types::FrameFormat::NV12) => {
+      // NV12 is a runtime format - use YuyvFormat as it has similar characteristics
+      // The camera will use its native format which may be NV12, YUYV, or MJPEG
+      nokhwa::utils::RequestedFormat::new::<YuyvFormat>(request_type)
+    }
+    Some(crate::types::FrameFormat::MJPEG) => {
+      // MJPEG is a runtime format - use RgbAFormat for fastest decoding
+      nokhwa::utils::RequestedFormat::new::<RgbAFormat>(request_type)
+    }
+    Some(crate::types::FrameFormat::GRAY) => {
+      nokhwa::utils::RequestedFormat::new::<LumaFormat>(request_type)
+    }
+    Some(crate::types::FrameFormat::RGBA) | None => {
       nokhwa::utils::RequestedFormat::new::<RgbAFormat>(request_type)
     }
   };

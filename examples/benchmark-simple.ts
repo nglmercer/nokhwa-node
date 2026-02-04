@@ -16,9 +16,10 @@ async function main(): Promise<void> {
   console.log("cameras", cameras)
   // Use first camera with default format
   const camera = Camera.newWithFormat(cameras[0].index, { requestType: RequestedFormatType.AbsoluteHighestFrameRate,format:FrameFormat.NV12 });
-  console.log('[>] Camera:', cameras[0].name);
+  console.log('[>] Camera:', camera.info());
   console.log('[>] Backend:', camera.backend());
   console.log('[>] Format:', camera.cameraFormat());
+  console.log('[>] Compatible formats:', camera.compatibleCameraFormats());
 
   const startTime = Date.now();
   let frameCount = 0;

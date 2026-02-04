@@ -71,7 +71,10 @@ impl Camera {
   /// Create a new camera instance with the given index and format configuration
   /// The camera stream is opened immediately with the specified format
   #[napi]
-  pub fn new_with_format(camera_index: String, format_config: RequestedFormatConfig) -> Result<Self> {
+  pub fn new_with_format(
+    camera_index: String,
+    format_config: RequestedFormatConfig,
+  ) -> Result<Self> {
     let nokhwa_index = parse_camera_index(camera_index)?;
     let nokhwa_format = convert_requested_format(format_config)?;
     let camera = nokhwa::Camera::new(nokhwa_index, nokhwa_format)
